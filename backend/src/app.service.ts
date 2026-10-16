@@ -1,23 +1,25 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from './prisma/prisma.service'; 
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
 
 @Injectable()
 export class AppService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getAllProducts() {
-    return await this.prisma.product.findMany();
+  async getProducts() {
+    try {
+      return await this.prisma.product.findMany();
+    } catch (error: any) {
+      return { status: 'Connection failed', error: error.message };
+    }
   }
 
-  async getProductById(id: string) {
-    const product = await this.prisma.product.findUnique({
-      where: { id: id }, 
-    });
-
-    if (!product) {
-      throw new NotFoundException(`Không tìm thấy sản phẩm có ID: ${id}`);
+  async getProductById(id: number) {
+    try {
+      return await this.prisma.product.findUnique({
+        where: { id }, 
+      });
+    } catch (error: any) {
+      return { status: 'Query failed', error: error.message };
     }
-
-    return product;
   }
 }

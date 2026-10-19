@@ -7,7 +7,9 @@ export class AppService {
 
   async getProducts() {
     try {
-      return await this.prisma.product.findMany();
+      return await this.prisma.product.findMany({
+        orderBy: { id: 'asc' },
+      });
     } catch (error: any) {
       return { status: 'Connection failed', error: error.message };
     }

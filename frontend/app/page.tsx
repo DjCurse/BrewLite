@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
+import { useCartStore } from "./store/useCartStore";
 type Product = {
   id: number;
   name: string;
@@ -101,7 +101,11 @@ export default function HomePage() {
   const [apiMessage, setApiMessage] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [searchQuery, setSearchQuery] = useState("");
-  const [cartCount] = useState(2);
+  const [mounted, setMounted] = useState(false);
+  const totalItems = useCartStore((state) => state.getTotalItems());
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -187,7 +191,7 @@ export default function HomePage() {
               <span aria-hidden="true">▣</span>
               <span className="hidden md:inline">Giỏ hàng</span>
               <span className="rounded-full bg-[#365d49] px-2 py-0.5 text-xs font-semibold text-white">
-                {cartCount}
+                {mounted ? totalItems : 0}
               </span>
             </Link>
           </div>

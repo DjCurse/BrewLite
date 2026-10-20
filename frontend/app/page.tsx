@@ -67,31 +67,38 @@ function money(value: number) {
 }
 
 // Hàm tự động bổ sung ảnh, mô tả và phân loại cho dữ liệu trả về từ Backend (vốn chỉ có name, price, imageUrl: null)
+// Hàm tự động bổ sung ảnh, mô tả và phân loại cho dữ liệu trả về từ Backend (vốn chỉ có name, price, imageUrl: null)
 function enrichProductMeta(item: Product, index: number): Product {
   const lower = item.name.toLowerCase();
   let matched = fallbackProducts[index % fallbackProducts.length];
+  let customImageUrl = null;
 
+  // Tách riêng từng nhóm để không bị dùng chung ảnh
   if (lower.includes("trà sữa")) {
     matched = fallbackProducts[0];
-  } else if (lower.includes("matcha") || lower.includes("bạc xỉu")) {
+  } else if (lower.includes("matcha")) {
     matched = fallbackProducts[1];
   } else if (lower.includes("cà phê")) {
     matched = fallbackProducts[2];
   } else if (lower.includes("trà đào") || lower.includes("trái cây")) {
     matched = fallbackProducts[3];
+  } else if (lower.includes("bạc xỉu")) {
+    // Cấp link ảnh riêng cho Bạc xỉu
+    customImageUrl = "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=800&q=85";
   }
+
+  const isBacXiu = lower.includes("bạc xỉu");
 
   return {
     ...item,
-    imageUrl: item.imageUrl || matched.imageUrl,
+    // Nếu là Bạc xỉu thì dùng ảnh custom, không thì dùng ảnh mặc định của nhóm đó
+    imageUrl: item.imageUrl || customImageUrl || matched.imageUrl,
     description:
       item.description ||
-      (lower.includes("bạc xỉu")
+      (isBacXiu
         ? "Sữa tươi ngọt béo hòa quyện chút cà phê thơm"
         : matched.description),
-    category:
-      item.category ||
-      (lower.includes("bạc xỉu") ? "Cà phê" : matched.category),
+    category: item.category || (isBacXiu ? "Cà phê" : matched.category),
   };
 }
 

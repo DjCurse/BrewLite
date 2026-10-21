@@ -7,7 +7,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
+      POSTGRES_PASSWORD: 123456 
       POSTGRES_DB: brewlite
     ports:
       - '5432:5432'
@@ -23,7 +23,7 @@ services:
     depends_on:
       - postgres
     environment:
-      DATABASE_URL: postgresql://postgres:password123@postgres:5432/brewlite?schema=public
+      DATABASE_URL: postgresql://postgres:123456@postgres:5432/brewlite?schema=public
       JWT_SECRET: brewlite_super_secret_jwt_2026
       PORT: 3001
     ports:

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useCartStore } from "../../store/useCartStore";
 
 type Product = {
   id: number;
@@ -20,7 +21,6 @@ type ProductMeta = {
   originNote: string;
 };
 
-// Danh sách dự phòng khớp với 4 ID trong Database
 const fallbackProducts: Record<number, Product> = {
   1: { id: 1, name: "Cà phê sữa đá", price: 30000, imageUrl: null, stock: 20 },
   2: { id: 2, name: "Bạc xỉu", price: 35000, imageUrl: null, stock: 15 },
@@ -47,7 +47,6 @@ function getFallbackById(id: number): Product {
   );
 }
 
-// Hàm tự động lấy đúng Ảnh, Danh mục và Mô tả theo tên món
 function getProductMeta(product: Product): ProductMeta {
   const lower = product.name.toLowerCase();
 
@@ -124,9 +123,17 @@ export default function ProductDetailPage() {
   );
   const [size, setSize] = useState<"S" | "M" | "L">("S");
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
-  const [cartCount, setCartCount] = useState(2);
   const [added, setAdded] = useState(false);
   const [apiMessage, setApiMessage] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  // Kết nối với Zustand Store
+  const addToCart = useCartStore((state) => state.addToCart);
+  const totalItems = useCartStore((state) => state.getTotalItems());
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -171,6 +178,20 @@ export default function ProductDetailPage() {
     setAdded(false);
   }
 
+  function handleAddToCart() {
+    addToCart({
+      productId: product.id,
+      name: product.name,
+      size,
+      toppings: selectedToppings,
+      basePrice: product.price,
+      unitPrice: total,
+      qty: 1,
+      imageUrl: meta.imageUrl,
+    });
+    setAdded(true);
+  }
+
   return (
     <div className="min-h-screen bg-[#faf8f3] text-[#302a26]">
       <header className="border-b border-[#e9e4db]">
@@ -199,13 +220,16 @@ export default function ProductDetailPage() {
             <button className="text-2xl md:hidden" aria-label="Mở menu">
               ☰
             </button>
-            <button className="flex items-center gap-3 rounded-full bg-[#e5eddf] px-4 py-2 text-sm">
+            <Link
+              href="/cart"
+              className="flex items-center gap-3 rounded-full bg-[#e5eddf] px-4 py-2 text-sm font-medium transition hover:bg-[#d8e5cf]"
+            >
               <span aria-hidden="true">▣</span>
               <span className="hidden md:inline">Giỏ hàng</span>
-              <span className="rounded-full bg-[#365d49] px-2 py-1 text-xs text-white">
-                {cartCount}
+              <span className="rounded-full bg-[#365d49] px-2 py-0.5 text-xs font-semibold text-white">
+                {mounted ? totalItems : 0}
               </span>
-            </button>
+            </Link>
           </div>
         </div>
       </header>
@@ -320,10 +344,7 @@ export default function ProductDetailPage() {
               </p>
             </div>
             <button
-              onClick={() => {
-                setCartCount((count) => count + 1);
-                setAdded(true);
-              }}
+              onClick={handleAddToCart}
               className="mt-4 min-h-14 w-full rounded-2xl bg-[#365d49] px-4 font-semibold text-white transition hover:bg-[#294a39]"
             >
               {added ? "Đã thêm vào giỏ hàng ✓" : "Thêm vào giỏ hàng"}

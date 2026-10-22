@@ -2,15 +2,16 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export type CartItem = {
-  cartItemId: string; // Khóa phân biệt cùng 1 món nhưng khác size/topping
+  cartItemId: string; 
   productId: number;
   name: string;
   size: "S" | "M" | "L";
   toppings: string[];
   basePrice: number;
-  unitPrice: number; // Giá 1 ly đã cộng tiền size + topping
+  unitPrice: number;  
+  topping?: string | null;
   qty: number;
-  lineTotal: number; // unitPrice * qty
+  lineTotal: number; 
   imageUrl: string;
 };
 

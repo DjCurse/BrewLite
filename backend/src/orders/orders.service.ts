@@ -35,7 +35,7 @@ export class OrdersService {
         qty: item.qty,
         lineTotal, // Khớp với cột `lineTotal` trong schema.prisma
       };
-    });
+    }); 
 
     // Tạo đơn hàng và chi tiết đơn trong một Transaction
     const order = await this.prisma.order.create({
@@ -60,5 +60,18 @@ export class OrdersService {
       message: 'Tạo đơn hàng thành công',
       order,
     };
+  } 
+  async getOrdersByUser(userId: number) {
+    return this.prisma.order.findMany({
+      where: { userId },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 }

@@ -75,7 +75,8 @@ export default function CheckoutPage() {
           body: JSON.stringify({
             items: items.map((item) => ({
               productId: item.productId,
-              size: item.size,
+              size: item.size, 
+              topping: item.topping || null,
               qty: item.qty,
               lineTotal: item.lineTotal,
             })),
@@ -90,7 +91,7 @@ export default function CheckoutPage() {
               : orderData.message || "Không thể tạo đơn hàng.",
           );
         }
-        currentOrderId = orderData.id;
+        currentOrderId = orderData.order ? orderData.order.id : orderData.id;
         setPendingOrderId(currentOrderId);
       }
 

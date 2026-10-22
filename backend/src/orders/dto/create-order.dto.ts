@@ -1,18 +1,25 @@
-import { IsArray, IsInt, IsNotEmpty, IsString, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class OrderItemDto {
-  @IsString()
+  @IsInt({ message: 'productId phải là số nguyên' })
   @IsNotEmpty({ message: 'productId không được để trống' })
-  productId: string;
+  productId: number;
 
   @IsString()
   @IsNotEmpty({ message: 'size không được để trống' })
   size: string;
 
+  @IsString()
+  @IsOptional() // Topping có thể có hoặc không
+  topping?: string;
+
   @IsInt({ message: 'Số lượng phải là số nguyên' })
   @Min(1, { message: 'Số lượng tối thiểu là 1' })
   qty: number;
+
+  @IsInt({ message: 'lineTotal phải là số nguyên' })
+  lineTotal: number;
 }
 
 export class CreateOrderDto {

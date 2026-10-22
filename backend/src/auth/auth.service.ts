@@ -20,19 +20,21 @@ export class AuthService {
       throw new ConflictException('Email đã được sử dụng');
     }
 
+    // Băm mật khẩu (Mục 4.2: Bảo mật)
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
+    // Lưu vào bảng User (Khớp với trường passwordHash của Như Ý)
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
-        password: hashedPassword,
-        name: dto.name,
+        passwordHash: hashedPassword,
+        loyaltyPoints: 0,
       },
     });
 
     return {
       message: 'Đăng ký tài khoản thành công',
-      user: { id: user.id, email: user.email, name: user.name },
+      user: { id: user.id, email: user.email },
     };
   }
 
@@ -44,13 +46,17 @@ export class AuthService {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+    // So sánh mật khẩu khách nhập với passwordHash trong DB
+    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
     }
 
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    // Khớp 100% với JwtStrategy
+    const payload = { sub: user.id, email: user.email };
+    
     return {
+      // Key này khớp chính xác với frontend của Tuyết Trâm đang gọi: body.access_token
       access_token: this.jwtService.sign(payload),
     };
   }

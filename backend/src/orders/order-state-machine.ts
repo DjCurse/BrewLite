@@ -10,42 +10,38 @@ export enum OrderStatus {
   CANCELLED = 'CANCELLED',
 }
 
-// Bảng ánh xạ chính xác theo Sơ đồ Mục 9.1 trong đề bài
+export type OrderStatusType = OrderStatus | `${OrderStatus}`;
+
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   [OrderStatus.PENDING]: [
-    OrderStatus.PAID,           // Thanh toán OK
-    OrderStatus.PAYMENT_FAILED, // Thanh toán lỗi
-    OrderStatus.CANCELLED,      // Khách hủy đơn khi chưa trả tiền
+    OrderStatus.PAID,          
+    OrderStatus.PAYMENT_FAILED,
+    OrderStatus.CANCELLED,     
   ],
   [OrderStatus.PAYMENT_FAILED]: [
-    OrderStatus.PENDING,        // Thử thanh toán lại
-    OrderStatus.CANCELLED,      // Hủy đơn
+    OrderStatus.PENDING,     
+    OrderStatus.CANCELLED,     
   ],
   [OrderStatus.PAID]: [
-    OrderStatus.PREPARING,      // Barista nhận đơn
-    OrderStatus.CANCELLED,      // Hủy đơn (hoàn tiền)
+    OrderStatus.PREPARING,     
+    OrderStatus.CANCELLED,     
   ],
   [OrderStatus.PREPARING]: [
-    OrderStatus.READY,          // Pha chế xong
+    OrderStatus.READY,          
   ],
   [OrderStatus.READY]: [
-    OrderStatus.COMPLETED,      // Giao khách thành công
+    OrderStatus.COMPLETED,      
   ],
-  // COMPLETED và CANCELLED là 2 trạng thái kết thúc, không được đi tiếp
   [OrderStatus.COMPLETED]: [],
   [OrderStatus.CANCELLED]: [],
 };
 
-/**
- * Kiểm tra xem đơn hàng có được phép chuyển từ trạng thái `current` sang `next` hay không.
- * Ném lỗi BadRequestException nếu chuyển trạng thái sai quy trình.
- */
 export function assertTransition(
-  current: OrderStatus,
-  next: OrderStatus,
+  current: OrderStatusType | string,
+  next: OrderStatusType | string,
 ): void {
-  const allowedNextStates = VALID_TRANSITIONS[current] ?? [];
-  if (!allowedNextStates.includes(next)) {
+  const allowedNextStates = VALID_TRANSITIONS[current as OrderStatus] ?? [];
+  if (!allowedNextStates.includes(next as OrderStatus)) {
     throw new BadRequestException(
       `Chuyển trạng thái đơn hàng không hợp lệ: Không thể chuyển từ [${current}] sang [${next}]`,
     );

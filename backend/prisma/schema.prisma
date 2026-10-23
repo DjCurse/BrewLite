@@ -45,6 +45,7 @@ model OrderItem {
   size      String
   topping   String?
   qty       Int
+  price     Float   @default(0) // <-- Thêm @default(0) vào đây
   lineTotal Float
 }
 

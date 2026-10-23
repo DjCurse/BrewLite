@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCartStore } from "./store/useCartStore";
+
 type Product = {
   id: number;
   name: string;
@@ -15,8 +16,6 @@ type Product = {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
-// Dữ liệu chuẩn theo thiết kế Figma (dùng làm fallback khi chưa bật Backend
-// đồng thời bổ sung ảnh/mô tả nếu trong Database đang để imageUrl: null)
 const fallbackProducts: Product[] = [
   {
     id: 1,
@@ -66,14 +65,11 @@ function money(value: number) {
   return `${value.toLocaleString("vi-VN")}đ`;
 }
 
-// Hàm tự động bổ sung ảnh, mô tả và phân loại cho dữ liệu trả về từ Backend (vốn chỉ có name, price, imageUrl: null)
-// Hàm tự động bổ sung ảnh, mô tả và phân loại cho dữ liệu trả về từ Backend (vốn chỉ có name, price, imageUrl: null)
 function enrichProductMeta(item: Product, index: number): Product {
   const lower = item.name.toLowerCase();
   let matched = fallbackProducts[index % fallbackProducts.length];
   let customImageUrl = null;
 
-  // Tách riêng từng nhóm để không bị dùng chung ảnh
   if (lower.includes("trà sữa")) {
     matched = fallbackProducts[0];
   } else if (lower.includes("matcha")) {
@@ -83,7 +79,6 @@ function enrichProductMeta(item: Product, index: number): Product {
   } else if (lower.includes("trà đào") || lower.includes("trái cây")) {
     matched = fallbackProducts[3];
   } else if (lower.includes("bạc xỉu")) {
-    // Cấp link ảnh riêng cho Bạc xỉu
     customImageUrl = "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=800&q=85";
   }
 
@@ -91,7 +86,6 @@ function enrichProductMeta(item: Product, index: number): Product {
 
   return {
     ...item,
-    // Nếu là Bạc xỉu thì dùng ảnh custom, không thì dùng ảnh mặc định của nhóm đó
     imageUrl: item.imageUrl || customImageUrl || matched.imageUrl,
     description:
       item.description ||
@@ -109,10 +103,22 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [searchQuery, setSearchQuery] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
   const totalItems = useCartStore((state) => state.getTotalItems());
+
   useEffect(() => {
     setMounted(true);
+    // Kiểm tra token trong localStorage xem đã đăng nhập chưa
+    const token = localStorage.getItem("access_token");
+    setIsLoggedIn(!!token);
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    setIsLoggedIn(false);
+    window.location.href = "/login";
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -150,7 +156,6 @@ export default function HomePage() {
     };
   }, []);
 
-  // Lọc sản phẩm theo Danh mục và Ô tìm kiếm
   const filteredProducts = products.filter((item) => {
     const matchCategory =
       selectedCategory === "Tất cả" || item.category === selectedCategory;
@@ -187,13 +192,15 @@ export default function HomePage() {
             </a>
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button className="text-2xl md:hidden" aria-label="Mở menu">
               ☰
             </button>
+
+            {/* Giỏ hàng */}
             <Link
               href="/cart"
-              className="flex items-center gap-2.5 rounded-full bg-[#e5eddf] px-4 py-2 text-sm font-medium transition hover:bg-[#d8e5cf]"
+              className="flex items-center gap-2 rounded-full bg-[#e5eddf] px-3.5 py-2 text-sm font-medium transition hover:bg-[#d8e5cf]"
             >
               <span aria-hidden="true">▣</span>
               <span className="hidden md:inline">Giỏ hàng</span>
@@ -201,13 +208,41 @@ export default function HomePage() {
                 {mounted ? totalItems : 0}
               </span>
             </Link>
+
+            {/* PHẦN KIỂM TRA ĐĂNG NHẬP / ĐĂNG XUẤT */}
+            {mounted && (
+              isLoggedIn ? (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/orders"
+                    className="hidden sm:inline-block rounded-full border border-[#365d49] px-3 py-1.5 text-xs font-semibold text-[#365d49] transition hover:bg-[#365d49] hover:text-white"
+                  >
+                    Lịch sử đơn
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="rounded-full bg-red-50 border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/login"
+                    className="rounded-full bg-[#365d49] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#294a39] md:text-sm"
+                  >
+                    Đăng nhập
+                  </Link>
+                </div>
+              )
+            )}
           </div>
         </div>
       </header>
 
       {/* MAIN CONTENT */}
       <main className="mx-auto w-full max-w-[1280px] flex-1 px-5 pb-16 pt-6 md:px-10 md:pb-20 md:pt-8">
-        {/* Thông báo nếu chưa bật Backend */}
         {apiMessage && (
           <p className="mb-5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5 text-sm text-amber-900">
             Đang hiển thị menu mẫu vì chưa kết nối được Backend API ({apiMessage}). Hãy chạy <code>npm run start:dev</code> ở thư mục <code>backend</code> để lấy dữ liệu thật.
@@ -253,7 +288,6 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Ô tìm kiếm */}
             <div className="relative w-full md:w-[340px]">
               <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-[#8d877f]">
                 🔍
@@ -268,7 +302,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Các nút lọc danh mục (Pills) */}
           <div className="mt-5 flex flex-wrap items-center gap-2.5">
             {categories.map((cat) => {
               const active = selectedCategory === cat;
@@ -288,14 +321,13 @@ export default function HomePage() {
             })}
           </div>
 
-          {/* Thanh đếm số lượng món */}
           <div className="mt-6 flex items-center justify-between text-xs text-[#8d877f] md:text-sm">
             <span>{filteredProducts.length} món ngon dành cho bạn</span>
             <span>Gợi ý từ BrewLite ↓</span>
           </div>
         </section>
 
-        {/* PRODUCT GRID (3 trạng thái: Loading, Empty, Data) */}
+        {/* PRODUCT GRID */}
         <section className="mt-4">
           {isLoading ? (
             <div className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">

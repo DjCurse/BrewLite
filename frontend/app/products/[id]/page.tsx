@@ -126,6 +126,7 @@ export default function ProductDetailPage() {
   const [added, setAdded] = useState(false);
   const [apiMessage, setApiMessage] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Kết nối với Zustand Store
   const addToCart = useCartStore((state) => state.addToCart);
@@ -133,7 +134,15 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     setMounted(true);
+    const token = localStorage.getItem("access_token");
+    setIsLoggedIn(!!token);
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    setIsLoggedIn(false);
+    window.location.href = "/login";
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -216,10 +225,7 @@ export default function ProductDetailPage() {
               Liên hệ
             </a>
           </nav>
-          <div className="flex items-center gap-5">
-            <button className="text-2xl md:hidden" aria-label="Mở menu">
-              ☰
-            </button>
+          <div className="flex items-center gap-4">
             <Link
               href="/cart"
               className="flex items-center gap-3 rounded-full bg-[#e5eddf] px-4 py-2 text-sm font-medium transition hover:bg-[#d8e5cf]"
@@ -230,6 +236,33 @@ export default function ProductDetailPage() {
                 {mounted ? totalItems : 0}
               </span>
             </Link>
+
+            {/* PHẦN KIỂM TRA ĐĂNG NHẬP / ĐĂNG XUẤT ĐỒNG BỘ */}
+            {mounted && (
+              isLoggedIn ? (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/orders"
+                    className="hidden sm:inline-block rounded-full border border-[#365d49] px-3 py-1.5 text-xs font-semibold text-[#365d49] transition hover:bg-[#365d49] hover:text-white"
+                  >
+                    Lịch sử đơn
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="rounded-full bg-red-50 border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  className="rounded-full bg-[#365d49] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#294a39]"
+                >
+                  Đăng nhập
+                </Link>
+              )
+            )}
           </div>
         </div>
       </header>

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCartStore } from "./store/useCartStore";
 
@@ -8,10 +7,8 @@ type Product = {
   id: number;
   name: string;
   price: number;
-  imageUrl: string | null;
+  imageUrl: string;
   stock: number;
-  description?: string;
-  category?: string;
 };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -121,39 +118,11 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    let cancelled = false;
-    setIsLoading(true);
-    setApiMessage("");
-
-    fetch(`${API_BASE_URL}/products`)
-      .then((response) => {
-        if (!response.ok) throw new Error(`API trả về lỗi ${response.status}`);
-        return response.json() as Promise<Product[]>;
-      })
-      .then((data) => {
-        if (!cancelled) {
-          if (Array.isArray(data) && data.length > 0) {
-            setProducts(data.map((item, idx) => enrichProductMeta(item, idx)));
-          } else {
-            setProducts([]);
-          }
-          setApiMessage("");
-          setIsLoading(false);
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setProducts(fallbackProducts);
-          setApiMessage(
-            error instanceof Error ? error.message : "Không kết nối được API"
-          );
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    fetch(API_URL)
+      .then((res) => res.json())
+      .then((data) => setProducts(data))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
   }, []);
 
   const filteredProducts = products.filter((item) => {
@@ -249,30 +218,26 @@ export default function HomePage() {
           </p>
         )}
 
-        {/* HERO BANNER */}
-        <section className="overflow-hidden rounded-[28px] bg-[#e5eddf] grid grid-cols-1 md:grid-cols-[1.05fr_0.95fr]">
-          <div className="flex flex-col justify-center p-7 sm:p-10 md:p-14">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#365d49]">
-              TƯƠI MỚI MỖI NGÀY
+        {/* Hero */}
+        <section className="overflow-hidden rounded-3xl bg-[#DDE8D5] md:grid md:grid-cols-2">
+          <div className="p-6 md:p-12">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2F5D46]">
+              Tươi mới mỗi ngày
             </p>
-            <h1 className="mt-3 text-4xl font-bold leading-[1.12] tracking-tight text-[#302a26] sm:text-5xl md:text-[54px]">
+            <h2 className="mt-4 text-4xl font-bold leading-tight md:text-5xl">
               Sip Fresh,
               <br />
               Live Better
-            </h1>
-            <p className="mt-4 max-w-md text-sm leading-6 text-[#6e6a63] md:text-[15px]">
+            </h2>
+            <p className="mt-4 text-sm text-gray-600">
               Một ly yêu thích, một ngày nhẹ tênh. Chọn vị ngon của riêng bạn.
             </p>
           </div>
-
-          <div
-            role="img"
-            aria-label="Đồ uống tươi mát tại BrewLite"
-            className="min-h-[240px] sm:min-h-[300px] md:min-h-[340px] w-full bg-cover bg-center"
-            style={{
-              backgroundImage:
-                'url("https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=1400&q=85")',
-            }}
+          {/* Xuất ảnh hero từ Figma, lưu vào frontend/public/hero.jpg */}
+          <img
+            src="/hero.jpg"
+            alt="BrewLite"
+            className="h-56 w-full object-cover md:h-full"
           />
         </section>
 
@@ -325,6 +290,12 @@ export default function HomePage() {
             <span>{filteredProducts.length} món ngon dành cho bạn</span>
             <span>Gợi ý từ BrewLite ↓</span>
           </div>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Tìm món bạn yêu thích..."
+            className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm outline-none md:w-80"
+          />
         </section>
 
         {/* PRODUCT GRID */}
@@ -353,71 +324,65 @@ export default function HomePage() {
                 Bạn thử chọn danh mục khác hoặc tìm với từ khóa khác nhé.
               </p>
               <button
-                onClick={() => {
-                  setSelectedCategory("Tất cả");
-                  setSearchQuery("");
-                }}
-                className="mt-4 rounded-full bg-[#365d49] px-5 py-2 text-sm font-medium text-white transition hover:bg-[#294a39]"
+                key={c}
+                className={`rounded-full border px-4 py-2 ${
+                  i === 0
+                    ? "border-[#2F5D46] bg-[#2F5D46] text-white"
+                    : "border-black/10 bg-white"
+                }`}
               >
-                Xem tất cả món
+                {c}
               </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
-              {filteredProducts.map((item) => (
+            )
+          )}
+        </div>
+
+        {/* Danh sách món */}
+        {loading && <p className="mt-10 text-center">Đang tải menu...</p>}
+        {error && (
+          <p className="mt-10 text-center text-red-600">
+            Không kết nối được máy chủ.
+          </p>
+        )}
+        {!loading && !error && filtered.length === 0 && (
+          <p className="mt-10 text-center">Hiện tại hết món</p>
+        )}
+
+        {!loading && !error && filtered.length > 0 && (
+          <>
+            <p className="mt-6 text-xs text-gray-500">
+              {filtered.length} món ngon dành cho bạn
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-4">
+              {filtered.map((p) => (
                 <div
-                  key={item.id}
-                  className="group flex flex-col rounded-3xl border border-[#e9e4db] bg-white p-3.5 transition hover:shadow-md md:p-4"
+                  key={p.id}
+                  className="rounded-2xl border border-black/5 bg-white p-3 shadow-sm"
                 >
+                  <img
+                    src={p.imageUrl}
+                    alt={p.name}
+                    className="aspect-square w-full rounded-xl object-cover"
+                  />
+                  <h3 className="mt-3 text-sm font-semibold">{p.name}</h3>
+                  <p className="mt-1 font-bold text-[#2F5D46]">
+                    {Number(p.price).toLocaleString("vi-VN")}đ
+                  </p>
                   <Link
-                    href={`/products/${item.id}`}
-                    className="overflow-hidden rounded-2xl bg-[#f3efe7]"
+                    href={`/products/${p.id}`}
+                    className="mt-3 block rounded-lg border border-black/10 py-2 text-center text-sm"
                   >
-                    <div
-                      role="img"
-                      aria-label={item.name}
-                      className="aspect-square w-full bg-cover bg-center transition duration-300 group-hover:scale-105"
-                      style={{
-                        backgroundImage: `url("${item.imageUrl}")`,
-                      }}
-                    />
+                    Chọn món
                   </Link>
-
-                  <div className="mt-3.5 flex flex-1 flex-col">
-                    <Link href={`/products/${item.id}`}>
-                      <h3 className="text-base font-bold text-[#302a26] group-hover:text-[#365d49] md:text-lg line-clamp-1">
-                        {item.name}
-                      </h3>
-                    </Link>
-
-                    <p className="mt-1 hidden text-xs text-[#8d877f] md:line-clamp-1 md:block">
-                      {item.description}
-                    </p>
-
-                    <p className="mt-1.5 text-base font-bold text-[#365d49] md:mt-2.5 md:text-xl">
-                      {money(item.price)}
-                    </p>
-
-                    <Link
-                      href={`/products/${item.id}`}
-                      className="mt-3 block w-full rounded-xl border border-[#e9e4db] bg-white py-2 text-center text-xs font-semibold text-[#302a26] transition hover:border-[#365d49] hover:bg-[#e5eddf] hover:text-[#365d49] md:mt-4 md:py-2.5 md:text-sm"
-                    >
-                      Chọn món
-                    </Link>
-                  </div>
                 </div>
               ))}
             </div>
-          )}
-        </section>
+          </>
+        )}
       </main>
 
-      {/* FOOTER */}
-      <footer className="border-t border-[#e9e4db]">
-        <div className="mx-auto flex max-w-[1280px] flex-col gap-2 px-5 py-5 text-xs text-[#8d877f] md:flex-row md:items-center md:justify-between md:px-10">
-          <span>BrewLite — Một chút tươi, một ngày vui.</span>
-          <span>© 2026 BrewLite</span>
-        </div>
+      <footer className="mt-12 border-t border-black/5 px-5 py-6 text-xs text-gray-500 md:px-8">
+        BrewLite — Một chút tươi, một ngày vui. © 2026 BrewLite
       </footer>
     </div>
   );

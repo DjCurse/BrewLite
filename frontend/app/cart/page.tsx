@@ -1,16 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCartStore } from "../store/useCartStore";
+import { useCheckout } from "../../src/lib/checkout";
 
 function money(value: number) {
   return `${value.toLocaleString("vi-VN")}đ`;
 }
 
 export default function CartPage() {
-  const router = useRouter();
+  const { placeOrder, loading, error } = useCheckout();
   const { items, updateQty, removeFromCart, clearCart, getTotalItems, getTotalPrice } =
     useCartStore();
 
@@ -33,7 +33,7 @@ export default function CartPage() {
   const totalItems = mounted ? getTotalItems() : 0;
   const totalPrice = mounted ? getTotalPrice() : 0;
 
-  function handleProceedToCheckout() {
+  async function handleProceedToCheckout() {
     if (items.length === 0) return;
 
     const token =
@@ -278,10 +278,12 @@ export default function CartPage() {
               <button
                 type="button"
                 onClick={handleProceedToCheckout}
-                className="mt-6 min-h-14 w-full rounded-2xl bg-[#365d49] px-4 text-base font-semibold text-white transition hover:bg-[#294a39]"
+                disabled={loading}
+                className="mt-6 min-h-14 w-full rounded-2xl bg-[#365d49] px-4 text-base font-semibold text-white transition hover:bg-[#294a39] disabled:opacity-60"
               >
-                Thanh toán ({money(totalPrice)})
+                {loading ? "Đang xử lý..." : `Thanh toán (${money(totalPrice)})`}
               </button>
+              {error && <p className="mt-3 text-center text-sm text-red-600">{error}</p>}
 
               <Link
                 href="/"

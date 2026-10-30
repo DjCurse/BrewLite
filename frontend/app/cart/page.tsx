@@ -14,11 +14,21 @@ export default function CartPage() {
   const { items, updateQty, removeFromCart, clearCart, getTotalItems, getTotalPrice } =
     useCartStore();
 
-  // Đảm bảo đồng bộ dữ liệu localStorage trên Client (tránh lỗi Hydration của Next.js)
   const [mounted, setMounted] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
   useEffect(() => {
     setMounted(true);
+    // Kiểm tra token đăng nhập trong localStorage
+    const token = localStorage.getItem("access_token");
+    setIsLoggedIn(!!token);
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    setIsLoggedIn(false);
+    window.location.href = "/login";
+  };
 
   const totalItems = mounted ? getTotalItems() : 0;
   const totalPrice = mounted ? getTotalPrice() : 0;
@@ -26,19 +36,13 @@ export default function CartPage() {
   async function handleProceedToCheckout() {
     if (items.length === 0) return;
 
-    // Chưa đăng nhập -> hook tự chuyển sang /login
-    // Đã đăng nhập -> gọi POST /orders kèm Bearer token
-    const order = await placeOrder(
-      items.map((item) => ({
-        productId: item.productId,
-        size: item.size,
-        qty: item.qty,
-      }))
-    );
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 
-    if (order) {
-      clearCart();
-      alert(`Đặt đơn thành công! Mã đơn: ${order.id}`);
+    if (!token) {
+      router.push("/login?redirect=/checkout");
+    } else {
+      router.push("/checkout");
     }
   }
 
@@ -69,10 +73,10 @@ export default function CartPage() {
             </a>
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link
               href="/cart"
-              className="flex items-center gap-2.5 rounded-full bg-[#365d49] px-4 py-2 text-sm font-medium text-white transition"
+              className="flex items-center gap-2 rounded-full bg-[#365d49] px-3.5 py-2 text-sm font-medium text-white transition"
             >
               <span aria-hidden="true">▣</span>
               <span className="hidden md:inline">Giỏ hàng</span>
@@ -80,6 +84,35 @@ export default function CartPage() {
                 {totalItems}
               </span>
             </Link>
+
+            {/* PHẦN KIỂM TRA ĐĂNG NHẬP / ĐĂNG XUẤT ĐỒNG BỘ VỚI PAGE CHÍNH */}
+            {mounted && (
+              isLoggedIn ? (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/orders"
+                    className="hidden sm:inline-block rounded-full border border-[#365d49] px-3 py-1.5 text-xs font-semibold text-[#365d49] transition hover:bg-[#365d49] hover:text-white"
+                  >
+                    Lịch sử đơn
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="rounded-full bg-red-50 border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/login"
+                    className="rounded-full bg-[#365d49] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#294a39] md:text-sm"
+                  >
+                    Đăng nhập
+                  </Link>
+                </div>
+              )
+            )}
           </div>
         </div>
       </header>
@@ -128,7 +161,7 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          /* DANH SÁCH MÓN & BẢNG TỔNG TIỀN (Bám sát Wireframe số 3) */
+          /* DANH SÁCH MÓN & BẢNG TỔNG TIỀN */
           <div className="grid gap-8 lg:grid-cols-[1.55fr_0.85fr]">
             {/* Cột trái: Danh sách món trong giỏ */}
             <section className="space-y-4">
@@ -158,8 +191,10 @@ export default function CartPage() {
                       </Link>
                       <p className="mt-1 text-xs font-medium text-[#5c564f]">
                         Size <span className="font-bold">{item.size}</span>
-                        {item.toppings.length > 0
+                        {item.toppings && item.toppings.length > 0
                           ? ` · Topping: ${item.toppings.join(", ")}`
+                          : item.topping && item.topping !== "Không"
+                          ? ` · Topping: ${item.topping}`
                           : " · Không thêm topping"}
                       </p>
                       <p className="mt-1 text-xs text-[#8d877f]">

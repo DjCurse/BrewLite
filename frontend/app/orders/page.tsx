@@ -154,6 +154,21 @@ function OrdersContent() {
 }
 
 export default function OrdersPage() {
+  const [mounted, setMounted] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const token = localStorage.getItem("access_token");
+    setIsLoggedIn(!!token);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    setIsLoggedIn(false);
+    window.location.href = "/login";
+  };
+
   return (
     <div className="min-h-screen bg-[#faf8f3] text-[#302a26] flex flex-col">
       <header className="border-b border-[#e9e4db]">
@@ -161,11 +176,34 @@ export default function OrdersPage() {
           <Link href="/" className="text-[24px] font-bold tracking-tight text-[#365d49]">
             ♧ BrewLite
           </Link>
-          <Link href="/" className="text-sm font-medium text-[#8d877f] hover:text-[#365d49]">
-            ← Quay lại thực đơn
-          </Link>
+
+          <div className="flex items-center gap-3">
+            <Link href="/" className="text-sm font-medium text-[#8d877f] hover:text-[#365d49]">
+              ← Quay lại thực đơn
+            </Link>
+
+            {/* Đồng bộ trạng thái Đăng nhập / Đăng xuất */}
+            {mounted && (
+              isLoggedIn ? (
+                <button
+                  onClick={handleLogout}
+                  className="rounded-full bg-red-50 border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                >
+                  Đăng xuất
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="rounded-full bg-[#365d49] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#294a39]"
+                >
+                  Đăng nhập
+                </Link>
+              )
+            )}
+          </div>
         </div>
       </header>
+
       <Suspense fallback={<p className="p-10 text-center text-sm">Đang tải...</p>}>
         <OrdersContent />
       </Suspense>

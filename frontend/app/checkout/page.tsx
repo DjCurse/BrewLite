@@ -16,6 +16,7 @@ export default function CheckoutPage() {
   const { items, clearCart, getTotalItems, getTotalPrice } = useCartStore();
 
   const [mounted, setMounted] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [method, setMethod] = useState<"WALLET" | "CARD">("WALLET");
   const [promoCode, setPromoCode] = useState("");
   const [simulateFailure, setSimulateFailure] = useState(false);
@@ -30,10 +31,17 @@ export default function CheckoutPage() {
     setIdempotencyKey(`idem-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
 
     const token = localStorage.getItem("access_token");
+    setIsLoggedIn(!!token);
     if (!token) {
       router.replace("/login?redirect=/checkout");
     }
   }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    setIsLoggedIn(false);
+    window.location.href = "/login";
+  };
 
   const totalItems = mounted ? getTotalItems() : 0;
   const subtotal = mounted ? getTotalPrice() : 0;
@@ -76,8 +84,8 @@ export default function CheckoutPage() {
             items: items.map((item) => ({
               productId: item.productId,
               size: item.size, 
-              topping: item.topping || null,
-              qty: item.qty,
+              topping: item.topping || (Array.isArray(item.toppings) ? item.toppings.join(", ") : null),
+              qty: item.qty ?? 1,
               lineTotal: item.lineTotal,
             })),
           }),
@@ -122,7 +130,6 @@ export default function CheckoutPage() {
 
       // Kiểm tra nếu cổng thanh toán trả về trạng thái PAYMENT_FAILED (US-05)
       if (paymentData.orderStatus === "PAYMENT_FAILED") {
-        // Đổi Idempotency-Key mới để khách có thể bấm "Thử thanh toán lại"
         setIdempotencyKey(`idem-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`);
         setErrorMsg(
           `Đơn hàng #${currentOrderId} đang ở trạng thái PAYMENT_FAILED (Thanh toán lỗi). Giỏ hàng của bạn vẫn được giữ nguyên — bạn có thể tắt chế độ giả lập lỗi và bấm xác nhận lại!`,
@@ -130,7 +137,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Thanh toán thành công (PAID) -> Xóa giỏ hàng và chuyển sang màn hình Xác nhận (Wireframe 5)
+      // Thanh toán thành công (PAID) -> Xóa giỏ hàng và chuyển sang màn hình Xác nhận
       const paidTotal = paymentData.pricing?.finalTotal ?? finalEstimatedTotal;
       const earnedPoints = paymentData.loyalty?.earnedPoints ?? Math.floor(paidTotal / 10000);
       clearCart();
@@ -155,9 +162,39 @@ export default function CheckoutPage() {
           <Link href="/" className="text-[24px] font-bold tracking-tight text-[#365d49]">
             ♧ BrewLite
           </Link>
-          <Link href="/cart" className="text-sm font-medium text-[#8d877f] hover:text-[#365d49]">
-            ← Quay lại giỏ hàng
-          </Link>
+
+          <div className="flex items-center gap-3">
+            <Link href="/cart" className="text-sm font-medium text-[#8d877f] hover:text-[#365d49]">
+              ← Quay lại giỏ hàng
+            </Link>
+
+            {/* PHẦN KIỂM TRA ĐĂNG NHẬP / ĐĂNG XUẤT ĐỒNG BỘ */}
+            {mounted && (
+              isLoggedIn ? (
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/orders"
+                    className="hidden sm:inline-block rounded-full border border-[#365d49] px-3 py-1.5 text-xs font-semibold text-[#365d49] transition hover:bg-[#365d49] hover:text-white"
+                  >
+                    Lịch sử đơn
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="rounded-full bg-red-50 border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                  >
+                    Đăng xuất
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  className="rounded-full bg-[#365d49] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#294a39]"
+                >
+                  Đăng nhập
+                </Link>
+              )
+            )}
+          </div>
         </div>
       </header>
 

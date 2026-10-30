@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useCartStore } from "./store/useCartStore";
 
 type Product = {
@@ -9,6 +10,8 @@ type Product = {
   price: number;
   imageUrl: string;
   stock: number;
+  description?: string;
+  category?: string;
 };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -58,10 +61,6 @@ const fallbackProducts: Product[] = [
 
 const categories = ["Tất cả", "Trà sữa", "Matcha", "Cà phê", "Trà trái cây"];
 
-function money(value: number) {
-  return `${value.toLocaleString("vi-VN")}đ`;
-}
-
 function enrichProductMeta(item: Product, index: number): Product {
   const lower = item.name.toLowerCase();
   let matched = fallbackProducts[index % fallbackProducts.length];
@@ -106,7 +105,6 @@ export default function HomePage() {
 
   useEffect(() => {
     setMounted(true);
-    // Kiểm tra token trong localStorage xem đã đăng nhập chưa
     const token = localStorage.getItem("access_token");
     setIsLoggedIn(!!token);
   }, []);
@@ -118,11 +116,23 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    fetch(API_URL)
-      .then((res) => res.json())
-      .then((data) => setProducts(data))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    fetch(`${API_BASE_URL}/products`)
+      .then((res) => {
+        if (!res.ok) throw new Error("API error");
+        return res.json();
+      })
+      .then((data) => {
+        const enriched = Array.isArray(data)
+          ? data.map((p, idx) => enrichProductMeta(p, idx))
+          : fallbackProducts;
+        setProducts(enriched);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setProducts(fallbackProducts);
+        setApiMessage("Không kết nối được Backend, đang dùng dữ liệu mẫu.");
+        setIsLoading(false);
+      });
   }, []);
 
   const filteredProducts = products.filter((item) => {
@@ -214,7 +224,7 @@ export default function HomePage() {
       <main className="mx-auto w-full max-w-[1280px] flex-1 px-5 pb-16 pt-6 md:px-10 md:pb-20 md:pt-8">
         {apiMessage && (
           <p className="mb-5 rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5 text-sm text-amber-900">
-            Đang hiển thị menu mẫu vì chưa kết nối được Backend API ({apiMessage}). Hãy chạy <code>npm run start:dev</code> ở thư mục <code>backend</code> để lấy dữ liệu thật.
+            {apiMessage}
           </p>
         )}
 
@@ -233,9 +243,8 @@ export default function HomePage() {
               Một ly yêu thích, một ngày nhẹ tênh. Chọn vị ngon của riêng bạn.
             </p>
           </div>
-          {/* Xuất ảnh hero từ Figma, lưu vào frontend/public/hero.jpg */}
           <img
-            src="/hero.jpg"
+            src="https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=800&q=85"
             alt="BrewLite"
             className="h-56 w-full object-cover md:h-full"
           />
@@ -290,12 +299,6 @@ export default function HomePage() {
             <span>{filteredProducts.length} món ngon dành cho bạn</span>
             <span>Gợi ý từ BrewLite ↓</span>
           </div>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm món bạn yêu thích..."
-            className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm outline-none md:w-80"
-          />
         </section>
 
         {/* PRODUCT GRID */}
@@ -323,65 +326,42 @@ export default function HomePage() {
               <p className="mt-1 text-sm text-[#8d877f]">
                 Bạn thử chọn danh mục khác hoặc tìm với từ khóa khác nhé.
               </p>
-              <button
-                key={c}
-                className={`rounded-full border px-4 py-2 ${
-                  i === 0
-                    ? "border-[#2F5D46] bg-[#2F5D46] text-white"
-                    : "border-black/10 bg-white"
-                }`}
-              >
-                {c}
-              </button>
-            )
-          )}
-        </div>
-
-        {/* Danh sách món */}
-        {loading && <p className="mt-10 text-center">Đang tải menu...</p>}
-        {error && (
-          <p className="mt-10 text-center text-red-600">
-            Không kết nối được máy chủ.
-          </p>
-        )}
-        {!loading && !error && filtered.length === 0 && (
-          <p className="mt-10 text-center">Hiện tại hết món</p>
-        )}
-
-        {!loading && !error && filtered.length > 0 && (
-          <>
-            <p className="mt-6 text-xs text-gray-500">
-              {filtered.length} món ngon dành cho bạn
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-4">
-              {filtered.map((p) => (
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {filteredProducts.map((p) => (
                 <div
                   key={p.id}
-                  className="rounded-2xl border border-black/5 bg-white p-3 shadow-sm"
+                  className="rounded-2xl border border-black/5 bg-white p-3 shadow-sm flex flex-col justify-between"
                 >
-                  <img
-                    src={p.imageUrl}
-                    alt={p.name}
-                    className="aspect-square w-full rounded-xl object-cover"
-                  />
-                  <h3 className="mt-3 text-sm font-semibold">{p.name}</h3>
-                  <p className="mt-1 font-bold text-[#2F5D46]">
-                    {Number(p.price).toLocaleString("vi-VN")}đ
-                  </p>
+                  <div>
+                    <img
+                      src={p.imageUrl}
+                      alt={p.name}
+                      className="aspect-square w-full rounded-xl object-cover"
+                    />
+                    <h3 className="mt-3 text-sm font-semibold">{p.name}</h3>
+                    <p className="mt-1 text-xs text-[#8d877f] line-clamp-1">
+                      {p.description}
+                    </p>
+                    <p className="mt-2 font-bold text-[#2F5D46]">
+                      {Number(p.price).toLocaleString("vi-VN")}đ
+                    </p>
+                  </div>
                   <Link
                     href={`/products/${p.id}`}
-                    className="mt-3 block rounded-lg border border-black/10 py-2 text-center text-sm"
+                    className="mt-3 block rounded-lg border border-black/10 py-2 text-center text-sm font-medium hover:bg-[#f3f0e6] transition"
                   >
                     Chọn món
                   </Link>
                 </div>
               ))}
             </div>
-          </>
-        )}
+          )}
+        </section>
       </main>
 
-      <footer className="mt-12 border-t border-black/5 px-5 py-6 text-xs text-gray-500 md:px-8">
+      <footer className="mt-12 border-t border-black/5 px-5 py-6 text-xs text-gray-500 md:px-8 text-center">
         BrewLite — Một chút tươi, một ngày vui. © 2026 BrewLite
       </footer>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCartStore } from "../store/useCartStore";
 import { useCheckout } from "../../src/lib/checkout";
@@ -10,6 +11,7 @@ function money(value: number) {
 }
 
 export default function CartPage() {
+  const router = useRouter();
   const { placeOrder, loading, error } = useCheckout();
   const { items, updateQty, removeFromCart, clearCart, getTotalItems, getTotalPrice } =
     useCartStore();

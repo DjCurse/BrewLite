@@ -1,0 +1,40 @@
+\subsection{Sprint Burndown Chart (Biểu đồ tiến độ Sprint)}
+Biểu đồ Burndown Chart được nhóm sử dụng trong các buổi họp \textit{Daily Scrum} hàng ngày để theo dõi khối lượng công việc còn lại (\textit{Story Points}) giảm dần qua từng ngày làm việc thực tế, giúp sớm phát hiện rủi ro nghẽn cổ chai (\textit{bottleneck}) và điều chỉnh phạm vi công việc kịp thời[cite: 18, 19].
+
+\begin{table}[h]
+\centering
+\caption{Bảng theo dõi tiến độ tiêu thụ Story Points trong Sprint}
+\label{tab:burndown-data}
+\begin{tabular}{c p{8.5cm} c c}
+\toprule
+\textbf{Ngày} & \textbf{Tiến trình công việc thực tế của nhóm} & \textbf{Lý tưởng} & \textbf{Thực tế} \\ \midrule
+Ngày 0 & Khởi động Sprint, chia 10 Task Backlog trên Zalo[cite: 18, 28, 29] & 20 & 20 \\
+Ngày 1 & Như Ý khởi tạo Prisma Schema \texttt{Product} \& PostgreSQL[cite: 27, 29] & 18 & 20 \\
+Ngày 2 & Thanh Tuấn tạo API NestJS \texttt{GET /products} \& \texttt{/products/:id}[cite: 27, 33] & 16 & 18 \\
+Ngày 3 & Trang dựng UI Menu và fetch API sản phẩm[cite: 27, 32] & 14 & 16 \\
+Ngày 4 & Tuyết Trâm tạo trang chi tiết \texttt{[id]} tùy chọn Size/Topping[cite: 27, 34] & 12 & 14 \\
+Ngày 5 & Khang hoàn thiện Zustand Cart Store \& UI Cart[cite: 37, 38] & 10 & 11 \\
+Ngày 6 & Trâm hoàn thiện UI Login/Register JWT \& README.md[cite: 34, 38] & 8 & 8 \\
+Ngày 7 & Tuấn xong API Order \& Auth Guard, Khang code Admin UI[cite: 37] & 6 & 6 \\
+Ngày 8 & Khang \& Ý test Order State Machine, Idempotency \& Loyalty & 4 & 3 \\
+Ngày 9 & Cả nhóm chạy Docker Compose, Smoke test \& Fix lỗi & 2 & 1 \\
+Ngày 10 & Hoàn thành 100\% Task Sprint, chuẩn bị báo cáo LaTeX & 0 & 0 \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/burndown-chart.png}
+    \caption{Biểu đồ Sprint Burndown Chart phản ánh tiến độ thực tế dự án BrewLite}
+    \label{fig:burndown-chart}
+\end{figure}
+
+\textbf{Cách đọc và phân tích tiến độ thực tế của nhóm[cite: 19]:}
+\begin{itemize}
+    \item \textbf{Đường Lý tưởng (Ideal - Đường nét đứt):} Thể hiện tốc độ tiêu thụ công việc giảm đều theo lý thuyết từ 20 points về 0 points trong 10 ngày làm việc của Sprint (mỗi ngày giải quyết 2 points)[cite: 18, 19].
+    \item \textbf{Đường Thực tế (Actual - Đường nét liền):} Phản ánh số lượng công việc thực tế còn lại của nhóm qua các giai đoạn[cite: 18, 19]:
+    \begin{itemize}
+        \item Từ \textbf{Ngày 1 đến Ngày 4}: Đường thực tế nằm phía \textit{trên} đường lý tưởng, phản ánh việc nhóm bị chậm tiến độ ban đầu do mất nhiều thời gian khởi tạo môi trường PostgreSQL, Prisma ORM và đồng bộ DTO giữa Frontend và Backend[cite: 19, 27, 29, 33].
+        \item Từ \textbf{Ngày 6 đến Ngày 10}: Nhóm đã tăng tốc hoàn thành các module Auth (JWT), Giỏ hàng, Order State Machine và thử nghiệm thành công Docker Compose, giúp đường thực tế hạ nhanh, vượt tiến độ ở Ngày 8--9 và cán mốc 0 điểm đúng deadline[cite: 19, 37, 38].
+    \end{itemize}
+\end{itemize}

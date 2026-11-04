@@ -5,7 +5,7 @@
 % frontend fetch calls va tai lieu phan cong chi tiet cua nhom.
 % ============================================================================
 
-\chapter{Nghiệp vụ Backend và bàn giao}
+% \chapter{Nghiệp vụ Backend và bàn giao}
 \label{chap:backend-handover}
 
 \section{Phạm vi và nền tảng triển khai}
@@ -305,7 +305,7 @@ CSDL PostgreSQL được truy cập qua Prisma ORM. Prisma schema trong snapshot
 \hline
 Product & \texttt{id} & \texttt{name}, \texttt{price}, \texttt{imageUrl}, \texttt{stock}, \texttt{version} & \texttt{stock} mặc định 0; \texttt{version} mặc định 1 để Optimistic Locking. \\
 \hline
-User & \texttt{id} & \texttt{email}, \texttt{passwordHash}, \texttt{loyaltyPoints} & \texttt{email} UNIQUE; không lưu mật khẩu dạng rõ; điểm mặc định 0. \\
+User & \texttt{id} & \texttt{email}, \texttt{passwordHash}, \textbf{\texttt{role}}, \texttt{loyaltyPoints} & \texttt{email} UNIQUE; \textbf{\texttt{role} dùng để phân quyền RBAC}; điểm mặc định 0. \\
 \hline
 Order & \texttt{id} & \texttt{userId}, \texttt{status}, \texttt{total}, \texttt{createdAt} & FK \texttt{userId} đến User; trạng thái mặc định PENDING; thời gian tạo mặc định now(). \\
 \hline
@@ -351,7 +351,7 @@ User (1) -------- (N) Order (1) -------- (N) OrderItem (N) -------- (1) Product
 
 \subsection{Mục tiêu buổi Review}
 
-Sprint Review là buổi trình bày Increment mà nhóm đã hoàn thành cho giảng viên và các bên liên quan. Nhóm cần chứng minh một luồng đặt đồ uống có thể theo dõi được từ thực đơn đến thanh toán, đồng thời thể hiện các trường hợp ngoại lệ quan trọng ở Backend. Buổi demo không thay thế kiểm thử; các kết quả như thời gian phản hồi dưới 500ms hoặc khả năng chịu tải 1.000 lượt đồng thời chỉ được công bố khi nhóm đã đo kiểm và có bằng chứng.
+Sprint Review là buổi trình bày Increment mà nhóm đã hoàn thành cho giảng viên và các bên liên quan. Nhóm cần chứng minh một luồng đặt đồ uống có thể theo dõi được từ thực đơn đến thanh toán, đồng thời thể hiện các trường hợp ngoại lệ quan trọng ở Backend. Buổi demo không thay thế kiểm thử; các kết quả như thời gian phản hồi dưới 500ms hoặc khả năng xử lý 100 yêu cầu đặt món đồng thời chỉ được công bố khi nhóm đã đo kiểm và có bằng chứng.
 
 \subsection{Thành phần và agenda đề xuất}
 

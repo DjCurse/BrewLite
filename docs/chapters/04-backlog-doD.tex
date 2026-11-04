@@ -4,7 +4,7 @@
 \subsection{Bảng Product Backlog}
 \label{sec:product-backlog}
 
-Các task được sắp xếp từ dễ đến khó và phân vào 3 Sprint (xem Mục~2.3 của đề bài).
+Các task được sắp xếp từ dễ đến khó và được lên kế hoạch giải quyết toàn bộ trong 1 Sprint kéo dài 10 ngày.
 Story Points (SP) là thang đo công sức tương đối; cách ước lượng được trình bày
 tại Mục~\ref{sec:story-points}.
 
@@ -68,14 +68,14 @@ tại Mục~\ref{sec:story-points}.
   \item Thêm, sửa số lượng, xóa sản phẩm trong giỏ.
   \item Lưu state bằng Zustand hoặc Context.
   \item Tự tính tổng tiền; hiển thị badge số lượng.
-\end{itemize} & 2 & 2 \\
+\end{itemize} & 2 & 1 \\
 \midrule
 
 6 & API tạo đơn hàng &
 \begin{itemize}
   \item \code{POST /orders} nhận giỏ hàng và validate bằng \code{class-validator}.
   \item Lưu đơn ở trạng thái \code{PENDING}, trả về mã đơn.
-\end{itemize} & 2 & 2 \\
+\end{itemize} & 2 & 1 \\
 \midrule
 
 7 & Đăng ký / Đăng nhập (JWT) &
@@ -83,7 +83,7 @@ tại Mục~\ref{sec:story-points}.
   \item \code{POST /auth/register} và \code{POST /auth/login}.
   \item Mật khẩu băm bằng bcrypt; phát JWT.
   \item Guard bảo vệ route đặt đơn.
-\end{itemize} & 2 & 2 \\
+\end{itemize} & 2 & 1 \\
 \midrule
 
 8 & Thanh toán không tiền mặt &
@@ -91,7 +91,7 @@ tại Mục~\ref{sec:story-points}.
   \item Tích hợp mock payment: chọn Ví hoặc Thẻ, gọi \code{POST /payments}.
   \item Thành công: đơn chuyển \code{PAID}.
   \item Lỗi: đơn chuyển \code{PAYMENT\_FAILED}, giỏ hàng được giữ nguyên.
-\end{itemize} & 2 & 3 \\
+\end{itemize} & 2 & 1 \\
 \midrule
 
 9 & Xác nhận, lịch sử đơn và bàn giao &
@@ -100,7 +100,7 @@ tại Mục~\ref{sec:story-points}.
   \item \code{GET /orders/me} trả lịch sử đơn của user.
   \item \code{docker-compose} chạy cả 3 dịch vụ (frontend, backend, DB).
   \item Có README và demo end-to-end.
-\end{itemize} & 3 & 3 \\
+\end{itemize} & 3 & 1 \\
 \midrule
 
 10 & Nghiệp vụ backend (Xử lý đặt hàng và thanh toán) &
@@ -115,7 +115,7 @@ tại Mục~\ref{sec:story-points}.
   \item Có unit/integration test chứng minh: (a) chặn chuyển trạng thái sai;
         (b) yêu cầu lặp với cùng \code{Idempotency-Key} không xử lý thanh toán lần hai;
         (c) mô phỏng hai khách mua đồng thời để kiểm tra không vượt tồn kho.
-\end{itemize} & 3 & 3 \\
+\end{itemize} & 3 & 1 \\
 \midrule
 \multicolumn{3}{r}{\textbf{Tổng SP}} & \textbf{20} & \\
 \end{longtable}

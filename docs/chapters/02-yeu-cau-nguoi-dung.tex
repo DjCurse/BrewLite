@@ -1,52 +1,4 @@
-
-\documentclass[11pt,a4paper]{article}
-
-\usepackage[a4paper,margin=2cm]{geometry}
-\usepackage{fontspec}
-\usepackage{polyglossia}
-\setdefaultlanguage{vietnamese}
-\setmainfont{TeX Gyre Heros}
-
-\usepackage{xcolor}
-\usepackage{array}
-\usepackage{tabularx}
-\usepackage{booktabs}
-\usepackage{colortbl}
-\usepackage{enumitem}
-\usepackage{fancyhdr}
-\usepackage{ragged2e}
-\usepackage{setspace}
-\usepackage{titlesec}
-
-\definecolor{titleblue}{RGB}{35,70,175}
-\definecolor{tableblue}{RGB}{235,243,253}
-
-\setlength{\parindent}{0pt}
-\setlength{\parskip}{4pt}
-\renewcommand{\arraystretch}{1.35}
-\setlength{\tabcolsep}{5pt}
-
-\pagestyle{fancy}
-\fancyhf{}
-\fancyfoot[C]{\thepage}
-\renewcommand{\headrulewidth}{0pt}
-\renewcommand{\footrulewidth}{0pt}
-
-\titleformat{\section}
-{\color{titleblue}\Large\bfseries}
-{\thesection.}{0.4em}{}
-
-\titlespacing*{\section}{0pt}{12pt}{16pt}
-
-\setlist[enumerate]{
-    leftmargin=1.1cm,
-    itemsep=6pt,
-    topsep=5pt
-}
-
-\begin{document}
-
-\section*{1. Product Vision (Định hướng sản phẩm)}
+\section{Product Vision (Định hướng sản phẩm)}
 
 \vspace{8pt}
 
@@ -63,9 +15,9 @@ hiện đại trong không gian quán. "
 }
 \end{center}
 
-\vspace{55pt}
+\vspace{15pt}
 
-\section*{2. Bảng Stakeholders (Các bên liên quan)}
+\section{Bảng Stakeholders (Các bên liên quan)}
 
 \vspace{12pt}
 
@@ -129,9 +81,8 @@ giao dịch (Idempotency). \\
 \end{tabularx}
 \normalsize
 
-\newpage
 
-\section*{3. Yêu cầu chức năng (Functional Requirements - FR)}
+\section{Yêu cầu chức năng (Functional Requirements - FR)}
 
 \vspace{12pt}
 
@@ -199,15 +150,14 @@ xác nhận gửi order. &
 \end{tabularx}
 \normalsize
 
-\newpage
 
-\section*{4. Yêu cầu phi chức năng (Non-Functional Requirements - NFR)}
+\section{Yêu cầu phi chức năng (Non-Functional Requirements - NFR)}
 
 \vspace{12pt}
 
 \small
 \begin{tabularx}{\textwidth}{
-@{}p{0.8cm}
+@{}p{1.2cm}
 >{\RaggedRight\arraybackslash\bfseries}p{2.2cm}
 >{\RaggedRight\arraybackslash}X@{}
 }
@@ -296,9 +246,8 @@ thuận tiện cho việc bảo trì và mở rộng tính năng về sau. \\
 
 \normalsize
 
-\vspace{25pt}
 
-\section*{5. User Story \& Acceptance Criteria tiêu biểu}
+\section{User Story \& Acceptance Criteria tiêu biểu}
 
 \vspace{8pt}
 
@@ -331,14 +280,6 @@ và tiến hành sang bước thanh toán.
 hiển thị thông tin số tiền và mã QR thanh toán tương ứng
 trong vòng dưới 500ms.
 
-\end{enumerate}
-
-\newpage
-
-\vspace*{0pt}
-
-\begin{enumerate}[start=4]
-
 \item \textbf{And} Khi giao dịch thanh toán thành công,
 trạng thái đơn hàng lập tức được cập nhật thành
 \texttt{PAID} và gửi thông báo xác nhận đơn hàng
@@ -350,5 +291,3 @@ và giữ nguyên giỏ hàng để khách hàng thử lại mà không
 bị trừ tiền hoặc tạo trùng đơn.
 
 \end{enumerate}
-
-\end{document}

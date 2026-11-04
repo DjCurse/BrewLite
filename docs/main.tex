@@ -1,35 +1,176 @@
-\documentclass[12pt,a4paper]{article}
-\usepackage[utf8]{vietnam}
+\documentclass[a4paper]{article}
+\usepackage{vntex}
+\usepackage{a4wide,amssymb,epsfig,latexsym,multicol,array,hhline,fancyhdr}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{lastpage}
+\usepackage[lined,boxed,commentsnumbered]{algorithm2e}
+\usepackage{enumerate}
+\usepackage{color}
 \usepackage{graphicx}
 \usepackage{array}
-\usepackage{booktabs}
+\usepackage{tabularx, caption}
+\usepackage{multirow}
+\usepackage[framemethod=tikz]{mdframed}
+\usepackage{rotating}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{tikz}
+\usepackage{listings}
 \usepackage{longtable}
 \usepackage{enumitem}
+\usepackage{colortbl} % Thêm thư viện tô màu bảng
+\usepackage{ragged2e} % Thêm thư viện căn chỉnh văn bản trong bảng
+\usetikzlibrary{arrows,snakes,backgrounds}
 \usepackage{hyperref}
-\usepackage{geometry}
-\geometry{a4paper, margin=2.5cm}
+\hypersetup{urlcolor=blue,linkcolor=black,citecolor=black,colorlinks=true}
+
+% Khai báo màu sắc dùng chung cho các chương (lấy từ file 02)
+\definecolor{titleblue}{RGB}{35,70,175}
+\definecolor{tableblue}{RGB}{235,243,253}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+% Macro tự động hiển thị ảnh nằm trong thư mục figures/
+\newcommand{\chenHinh}[2]{%
+  \IfFileExists{figures/#2}{%
+    \includegraphics[#1]{figures/#2}%
+  }{%
+    \IfFileExists{#2}{%
+      \includegraphics[#1]{#2}%
+    }{%
+      \fbox{\parbox{0.85\textwidth}{\centering\vspace{0.8cm}%
+        \textbf{[Chưa tải file ảnh: \texttt{figures/#2} lên Overleaf]}\\
+        {\footnotesize (Hãy kiểm tra lại xem file ảnh đã nằm trong thư mục figures chưa)}%
+      \vspace{0.8cm}}}%
+    }%
+  }%
+}
+
+\setlength{\headheight}{40pt}
+\pagestyle{fancy}
+\fancyhead{}
+\fancyhead[L]{
+ \begin{tabular}{rl}
+    \begin{picture}(25,15)(0,0)
+    \put(0,-8){\IfFileExists{figures/logoITSGUsmall.png}{\includegraphics[width=8mm, height=8mm]{figures/logoITSGUsmall.png}}{}}
+   \end{picture}&
+	\begin{tabular}{l}
+		\textbf{\bf \ttfamily Trường Đại học Sài Gòn}\\
+		\textbf{\bf \ttfamily Khoa Công Nghệ Thông Tin}
+	\end{tabular}
+ \end{tabular}
+}
+\fancyhead[R]{
+	\begin{tabular}{l}
+		\tiny \bf \\
+		\tiny \bf
+	\end{tabular}
+}
+\fancyfoot{}
+\fancyfoot[L]{\scriptsize \ttfamily Bài tập lớn môn Công nghệ Phần mềm - Học kỳ I (2026-2027)}
+\fancyfoot[R]{\scriptsize \ttfamily Trang {\thepage}/\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\footrulewidth}{0.3pt}
+
+\setcounter{secnumdepth}{4}
+\setcounter{tocdepth}{3}
+
+\lstset{frame=tb,
+	language=Java,
+	aboveskip=3mm,
+	belowskip=3mm,
+	showstringspaces=false,
+	columns=flexible,
+	basicstyle={\small\ttfamily},
+	numbers=left,
+	numberstyle=\tiny\color{gray},
+	keywordstyle=\color{blue},
+	commentstyle=\color{dkgreen},
+	stringstyle=\color{mauve},
+	breaklines=true,
+	breakatwhitespace=true,
+	tabsize=3,
+	stepnumber=1,
+	numbersep=5pt,
+	firstnumber=1,
+	numberfirstline=true
+}
 
 \makeatletter
 \@addtoreset{table}{section}
 \makeatother
 \renewcommand{\thetable}{\thesection.\arabic{table}}
 
-\title{\textbf{BÁO CÁO BÀI TẬP LỚN: BREWLITE}\\ \large Môn: Công nghệ Phần mềm (Quy trình Agile Scrum)}
-\author{Nhóm Sinh Viên - Đại Học Sài Gòn}
-\date{Học kỳ I - Năm học 2026-2027}
-
 \begin{document}
 
-\maketitle
+% ==================== TRANG BÌA ====================
+\begin{titlepage}
+\begin{center}
+{\large \textbf{TRƯỜNG ĐẠI HỌC SÀI GÒN}} \\
+{\large \textbf{KHOA CÔNG NGHỆ THÔNG TIN}}
+\end{center}
+\vspace{1.5cm}
+
+\begin{figure}[h!]
+\begin{center}
+\IfFileExists{figures/logoITSGU.png}{\includegraphics[width=3cm]{figures/logoITSGU.png}}{}
+\end{center}
+\end{figure}
+
+\vspace{1cm}
+
+\begin{center}
+\begin{tabular}{c}
+	\textbf{{\Large CÔNG NGHỆ PHẦN MỀM}}\\
+	~~\\
+	\hline
+	\\
+	\textbf{{\Large Bài tập lớn: BrewLite - Assignment 2}}\\
+	\\
+	\textbf{{\Large REQUIREMENTS TO DEPLOYMENT}}\\
+	\\
+	\hline
+\end{tabular}
+\end{center}
+
+\vspace{2cm}
+
+\begin{center}
+\begin{tabular}{rrl}
+\textbf{GVHD:} & \textbf{Từ Lăng Phiêu} & \\
+\textbf{Nhóm SV:} & 1. Tô Phúc Khang (Nhóm trưởng) & - MSSV: ................. \\
+& 2. Phan Lê Ngọc Như Ý & - MSSV: ................. \\
+& 3. Nguyễn Thị Tuyết Trâm & - MSSV: ................. \\
+& 4. Thanh Tuấn & - MSSV: ................. \\
+& 5. Huyền T & - MSSV: ................. \\
+\end{tabular}
+\end{center}
+
+\vspace{1.5cm}
+
+\begin{center}
+{\footnotesize TP. HỒ CHÍ MINH, NĂM 2026}
+\end{center}
+\end{titlepage}
+
+\thispagestyle{empty}
 \newpage
 \tableofcontents
 \newpage
 
-% Ghép từng file chương do các thành viên phụ trách
+% ==================== GHÉP CÁC CHƯƠNG TỪ THƯ MỤC CHAPTERS ====================
 \input{chapters/01-tong-quan-scrum.tex}
 \input{chapters/02-yeu-cau-nguoi-dung.tex}
 \input{chapters/03-luong-nghiep-vu-kientruc.tex}
 \input{chapters/04-backlog-doD.tex}
 \input{chapters/05-nghiep-vu-backend-ban-giao.tex}
+
+\newpage
+% ==================== TÀI LIỆU THAM KHẢO ====================
+\bibliographystyle{plain} 
+\nocite{*}
+\bibliography{references}
 
 \end{document}

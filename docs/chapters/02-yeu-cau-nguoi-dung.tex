@@ -1,0 +1,354 @@
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[a4paper,margin=2cm]{geometry}
+\usepackage{fontspec}
+\usepackage{polyglossia}
+\setdefaultlanguage{vietnamese}
+\setmainfont{TeX Gyre Heros}
+
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{ragged2e}
+\usepackage{setspace}
+\usepackage{titlesec}
+
+\definecolor{titleblue}{RGB}{35,70,175}
+\definecolor{tableblue}{RGB}{235,243,253}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\renewcommand{\arraystretch}{1.35}
+\setlength{\tabcolsep}{5pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\titleformat{\section}
+{\color{titleblue}\Large\bfseries}
+{\thesection.}{0.4em}{}
+
+\titlespacing*{\section}{0pt}{12pt}{16pt}
+
+\setlist[enumerate]{
+    leftmargin=1.1cm,
+    itemsep=6pt,
+    topsep=5pt
+}
+
+\begin{document}
+
+\section*{1. Product Vision (Định hướng sản phẩm)}
+
+\vspace{8pt}
+
+\begin{center}
+\fbox{
+\begin{minipage}{0.93\textwidth}
+\centering
+\large\itshape
+" Hệ Thống Đặt Và Thanh Toán Đồ Uống giúp khách hàng
+đặt và thanh toán đồ uống không tiền mặt chỉ trong vài
+chạm, mang lại trải nghiệm nhanh chóng, tiện lợi và
+hiện đại trong không gian quán. "
+\end{minipage}
+}
+\end{center}
+
+\vspace{55pt}
+
+\section*{2. Bảng Stakeholders (Các bên liên quan)}
+
+\vspace{12pt}
+
+\small
+\begin{tabularx}{\textwidth}{
+@{}>{\RaggedRight\arraybackslash\bfseries}p{2.3cm}
+>{\RaggedRight\arraybackslash}p{2.6cm}
+>{\RaggedRight\arraybackslash}X
+>{\RaggedRight\arraybackslash}X@{}
+}
+\toprule
+\rowcolor{tableblue}
+Stakeholder & Vai trò & Mục tiêu / Kỳ vọng &
+Mối quan tâm / Thách thức \\
+\midrule
+
+Khách hàng &
+Người dùng cuối &
+Xem menu nhanh, tùy chọn size/topping dễ dàng,
+đặt hàng và thanh toán không tiền mặt không lo xếp hàng. &
+Trải nghiệm mượt mà, không giật lag giờ cao điểm,
+tính chính xác của đơn hàng. \\
+
+\midrule
+
+Quản lý / PO &
+Quản lý vận hành &
+Quản lý món ăn, tồn kho, theo dõi trạng thái đơn hàng
+thời gian thực và tối ưu quy trình phục vụ. &
+Giao diện quản trị trực quan, báo cáo doanh thu chính xác,
+giảm thiểu sai sót đơn. \\
+
+\midrule
+
+Giảng viên &
+Nghiệm thu &
+Kiểm tra tính đầy đủ của các yêu cầu chức năng,
+kiến trúc hệ thống và khả năng vận hành thực tế. &
+Tuân thủ quy trình phát triển phần mềm, chuẩn hóa code,
+tính bảo mật và tài liệu kỹ thuật. \\
+
+\midrule
+
+Dev Team &
+Phát triển hệ thống &
+Phát triển tính năng đúng tiến độ, mã nguồn sạch,
+kiến trúc dễ nâng cấp và duy trì. &
+Khả năng mở rộng, quản lý API, tính đồng bộ giữa
+Frontend và Backend. \\
+
+\midrule
+
+Gateway Mock &
+Trung gian thanh toán &
+Xử lý giao dịch thanh toán trực tuyến an toàn,
+chính xác và phản hồi nhanh chóng. &
+Tính bảo mật thông tin thanh toán, xử lý phản hồi
+giao dịch (Idempotency). \\
+
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\newpage
+
+\section*{3. Yêu cầu chức năng (Functional Requirements - FR)}
+
+\vspace{12pt}
+
+\small
+\begin{tabularx}{\textwidth}{
+@{}p{0.8cm}
+>{\RaggedRight\arraybackslash\bfseries}p{2.1cm}
+>{\RaggedRight\arraybackslash}X
+>{\RaggedRight\arraybackslash}p{2.0cm}@{}
+}
+\toprule
+\rowcolor{tableblue}
+ID & Đối tượng & Yêu cầu chức năng (FR) &
+Tương ứng nhánh BFD \\
+\midrule
+
+FR-01 &
+Tất cả người dùng &
+Hệ thống yêu cầu đăng nhập, đăng xuất và cho phép
+cập nhật thông tin hồ sơ cá nhân. &
+1. Quản lý tài khoản \\
+
+\midrule
+
+FR-02 &
+Quản lý (Admin) &
+Hệ thống cho phép quản trị viên thêm, sửa, xóa
+tài khoản nhân viên và phân quyền truy cập. &
+1. Quản lý tài khoản \\
+
+\midrule
+
+FR-03 &
+Quản lý (Admin) &
+Hệ thống cho phép thêm, sửa, xóa, phân loại danh mục
+và cập nhật trạng thái món ăn (còn/hết). &
+2. Quản lý thực đơn \\
+
+\midrule
+
+FR-04 &
+Quản lý (Admin) &
+Hệ thống hỗ trợ tạo phiếu nhập kho, kiểm kê và
+cập nhật số lượng tồn kho nguyên liệu. &
+3. Quản lý nhập kho \\
+
+\midrule
+
+FR-05 &
+Khách / Phục vụ &
+Hệ thống cho phép xem chi tiết thực đơn, tìm kiếm
+món ăn và xem tư vấn món bán chạy. &
+4. Đặt món \\
+
+\midrule
+
+FR-06 &
+Khách / Phục vụ &
+Hệ thống cho phép thêm món vào giỏ hàng, tùy chọn
+hình thức (tại bàn/mang đi), thêm ghi chú và
+xác nhận gửi order. &
+4. Đặt món \\
+
+\bottomrule
+\end{tabularx}
+\normalsize
+
+\newpage
+
+\section*{4. Yêu cầu phi chức năng (Non-Functional Requirements - NFR)}
+
+\vspace{12pt}
+
+\small
+\begin{tabularx}{\textwidth}{
+@{}p{0.8cm}
+>{\RaggedRight\arraybackslash\bfseries}p{2.2cm}
+>{\RaggedRight\arraybackslash}X@{}
+}
+\toprule
+\rowcolor{tableblue}
+ID & Loại & Non-functional Requirement \\
+\midrule
+
+NFR-01 &
+Performance &
+Ít nhất 95\% yêu cầu xem danh sách món ăn phải được hệ thống
+phản hồi trong vòng 2 giây trong điều kiện tải bình thường
+(Thời gian phản hồi API dưới 500ms). \\
+
+\midrule
+
+NFR-02 &
+Performance &
+Hệ thống phải có khả năng xử lý ít nhất 100 yêu cầu đặt món
+đồng thời mà không làm mất, tạo trùng hoặc sai thông tin đơn hàng. \\
+
+\midrule
+
+NFR-03 &
+Security &
+Hệ thống phải yêu cầu khách hàng đăng nhập trước khi thực hiện
+các thao tác đặt món và thanh toán. \\
+
+\midrule
+
+NFR-04 &
+Security &
+Hệ thống phải phân quyền theo vai trò (RBAC), đảm bảo khách hàng
+không thể truy cập các chức năng quản lý dành cho nhân viên
+và quản trị viên. \\
+
+\midrule
+
+NFR-05 &
+Security &
+Thông tin tài khoản và mật khẩu của người dùng phải được bảo vệ
+bằng mã hóa băm (bcrypt) và token JWT, không cho phép người dùng
+khác truy cập trái phép. \\
+
+\midrule
+
+NFR-06 &
+Usability &
+Giao diện đặt món phải rõ ràng, dễ sử dụng và cho phép khách hàng
+hoàn thành quy trình chọn món $\rightarrow$ thêm vào giỏ hàng
+$\rightarrow$ xác nhận đơn hàng một cách thuận tiện. \\
+
+\midrule
+
+NFR-07 &
+Reliability &
+Hệ thống phải đảm bảo thông tin về món ăn, số lượng, giá tiền
+và đơn hàng được lưu trữ chính xác, không bị mất hoặc sai lệch
+trong quá trình xử lý. \\
+
+\midrule
+
+NFR-08 &
+Availability &
+Hệ thống phải duy trì hoạt động ổn định trong thời gian phục vụ
+và hạn chế tối đa tình trạng gián đoạn khi khách hàng thực hiện
+đặt món. \\
+
+\midrule
+
+NFR-09 &
+Scalability &
+Hệ thống phải cho phép thêm mới cửa hàng, món ăn, nhân viên
+và tài khoản quản lý mà không ảnh hưởng đến các chức năng
+đang hoạt động. \\
+
+\midrule
+
+NFR-10 &
+Maintainability &
+Hệ thống phải được thiết kế và tổ chức mã nguồn rõ ràng,
+thuận tiện cho việc bảo trì và mở rộng tính năng về sau. \\
+
+\bottomrule
+\end{tabularx}
+
+\normalsize
+
+\vspace{25pt}
+
+\section*{5. User Story \& Acceptance Criteria tiêu biểu}
+
+\vspace{8pt}
+
+\textbf{\large US-05: Thanh toán không tiền mặt}
+
+\vspace{12pt}
+
+\hspace{1cm}\textbf{User Story:}
+
+\hspace{1cm}
+"Là một Khách hàng, tôi muốn thực hiện thanh toán đơn hàng
+bằng phương thức không tiền mặt (chuyển khoản / cổng thanh toán)
+để tôi có thể hoàn tất việc đặt đồ uống nhanh chóng mà không
+cần đợi trả lại tiền mặt."
+
+\vspace{15pt}
+
+\textbf{Acceptance Criteria (Tiêu chí chấp nhận):}
+
+\begin{enumerate}
+
+\item \textbf{Given} Khách hàng đã chọn xong các món trong giỏ hàng
+và tiến hành sang bước thanh toán.
+
+\item \textbf{When} Khách hàng chọn phương thức
+"Thanh toán qua Ví điện tử / Mã QR" và nhấn
+"Xác nhận thanh toán".
+
+\item \textbf{Then} Hệ thống tạo mã giao dịch duy nhất,
+hiển thị thông tin số tiền và mã QR thanh toán tương ứng
+trong vòng dưới 500ms.
+
+\end{enumerate}
+
+\newpage
+
+\vspace*{0pt}
+
+\begin{enumerate}[start=4]
+
+\item \textbf{And} Khi giao dịch thanh toán thành công,
+trạng thái đơn hàng lập tức được cập nhật thành
+\texttt{PAID} và gửi thông báo xác nhận đơn hàng
+cho khách hàng.
+
+\item \textbf{And} Trường hợp thanh toán thất bại hoặc quá
+thời gian chờ (timeout), hệ thống thông báo lỗi rõ ràng
+và giữ nguyên giỏ hàng để khách hàng thử lại mà không
+bị trừ tiền hoặc tạo trùng đơn.
+
+\end{enumerate}
+
+\end{document}

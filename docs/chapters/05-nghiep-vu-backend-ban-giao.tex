@@ -1,0 +1,467 @@
+% ============================================================================
+% CHUONG 05 - NGHIEP VU BACKEND VA BAN GIAO (BREWLITE)
+% Noi dung duoc doi chieu voi Prisma schema, order-state-machine.ts,
+% loyalty-promo.helper.ts, payments.service.ts, task10-business.spec.ts,
+% frontend fetch calls va tai lieu phan cong chi tiet cua nhom.
+% ============================================================================
+
+\chapter{Nghiệp vụ Backend và bàn giao}
+\label{chap:backend-handover}
+
+\section{Phạm vi và nền tảng triển khai}
+
+BrewLite là ứng dụng đặt đồ uống trực tuyến, hướng đến việc giúp khách hàng xem thực đơn, lựa chọn size và topping, tạo đơn hàng, thanh toán không tiền mặt và theo dõi tiến độ pha chế. Phần Backend cung cấp REST API để tiếp nhận yêu cầu từ giao diện, xác thực người dùng, quản lý dữ liệu đơn hàng và phối hợp với cơ sở dữ liệu.
+
+Kiến trúc công nghệ được xác định trong tài liệu dự án gồm:
+\begin{itemize}
+    \item \textbf{Frontend:} Next.js, sử dụng SSR/CSR tùy màn hình và thao tác.
+    \item \textbf{Backend:} NestJS, tổ chức nghiệp vụ thông qua Controller và Service.
+    \item \textbf{Cơ sở dữ liệu:} PostgreSQL, truy cập bằng Prisma ORM.
+    \item \textbf{Thanh toán:} Mock Payment Gateway phục vụ mô phỏng giao dịch WALLET hoặc CARD trong phạm vi đồ án.
+\end{itemize}
+
+Các nghiệp vụ trọng tâm của phần bàn giao này là vòng đời đơn hàng, chống xử lý thanh toán trùng lặp, bảo vệ tồn kho khi có nhiều giao dịch đồng thời, áp dụng khuyến mãi và tích lũy điểm thưởng.
+
+\section{Order State Machine -- Máy trạng thái đơn hàng}
+\label{sec:order-state-machine}
+
+\subsection{Các trạng thái của đơn hàng}
+
+Mỗi đơn hàng được lưu với trường \texttt{status} thuộc kiểu \texttt{OrderStatus}. Các trạng thái được định nghĩa trong mã nguồn \texttt{backend/src/orders/order-state-machine.ts} gồm:
+
+\begin{itemize}
+    \item \textbf{PENDING:} Đơn vừa được tạo, đang chờ thanh toán.
+    \item \textbf{PAID:} Thanh toán đã thành công; đơn đủ điều kiện chuyển cho nhân viên/barista.
+    \item \textbf{PAYMENT\_FAILED:} Thanh toán thất bại; khách hàng có thể thử thanh toán lại.
+    \item \textbf{PREPARING:} Nhân viên/barista đã tiếp nhận và đang chuẩn bị đồ uống.
+    \item \textbf{READY:} Đồ uống đã chuẩn bị xong, khách hàng có thể đến quầy nhận.
+    \item \textbf{COMPLETED:} Khách hàng đã nhận đủ đồ uống; đơn kết thúc thành công.
+    \item \textbf{CANCELLED:} Đơn đã bị hủy; đây là trạng thái kết thúc.
+\end{itemize}
+
+\subsection{Sơ đồ chuyển trạng thái}
+
+Sơ đồ dưới đây mô tả luồng thành công và các nhánh ngoại lệ. Mũi tên chỉ được phép đi theo các chuyển tiếp đã khai báo trong \texttt{VALID\_TRANSITIONS}.
+
+\begin{verbatim}
+                         thanh toan thanh cong
+      +---------+  ---------------------------->  +------+
+      | PENDING |                                 | PAID |
+      +---------+                                 +------+
+        |    |                                        |
+        |    | thanh toan that bai                    | barista tiep nhan
+        |    v                                        v
+        | +----------------+                    +-----------+
+        | | PAYMENT_FAILED |                    | PREPARING |
+        | +----------------+                    +-----------+
+        |    |       ^                                 |
+        |    |       |                                 | pha che xong
+        |    +-------+                                 v
+        |     thu lai thanh toan                  +-------+
+        |                                         | READY |
+        |                                         +-------+
+        |                                             |
+        |                                             | khach da nhan
+        |                                             v
+        |                                        +-----------+
+        |                                        | COMPLETED |
+        |                                        +-----------+
+        |
+        +---------------------> CANCELLED
+            khach huy don          ^
+                                  |
+             PAYMENT_FAILED ------+
+             PAID ----------------+
+             (PAID: huy kem xu ly hoan tien theo chinh sach)
+
+      COMPLETED va CANCELLED la hai trang thai ket thuc.
+\end{verbatim}
+
+\subsection{Bảng chuyển trạng thái hợp lệ}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{2.5cm}|p{3.0cm}|p{8.0cm}|}
+\hline
+\textbf{Trạng thái hiện tại} & \textbf{Trạng thái tiếp theo} & \textbf{Điều kiện nghiệp vụ} \\
+\hline
+PENDING & PAID & Cổng thanh toán trả kết quả thành công. \\
+\hline
+PENDING & PAYMENT\_FAILED & Giao dịch thanh toán thất bại. \\
+\hline
+PENDING & CANCELLED & Khách hàng hủy khi đơn chưa được thanh toán. \\
+\hline
+PAYMENT\_FAILED & PENDING & Khách hàng bắt đầu một lần thử thanh toán mới. \\
+\hline
+PAYMENT\_FAILED & CANCELLED & Khách hàng quyết định hủy đơn sau khi thanh toán lỗi. \\
+\hline
+PAID & PREPARING & Nhân viên/barista tiếp nhận đơn để pha chế. \\
+\hline
+PAID & CANCELLED & Đơn được hủy sau thanh toán; cần xử lý hoàn tiền theo chính sách. \\
+\hline
+PREPARING & READY & Đồ uống đã được chuẩn bị xong. \\
+\hline
+READY & COMPLETED & Khách hàng đã đến quầy và nhận đồ uống. \\
+\hline
+COMPLETED & Không có & Trạng thái kết thúc, không cho phép chuyển tiếp. \\
+\hline
+CANCELLED & Không có & Trạng thái kết thúc, không cho phép chuyển tiếp. \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Luật chặn trạng thái sai}
+
+Backend không cập nhật trạng thái theo ý muốn tùy ý từ Client. Hàm \texttt{assertTransition(current, next)} tra cứu danh sách \texttt{VALID\_TRANSITIONS}; nếu trạng thái đích không nằm trong danh sách cho phép, hàm ném \texttt{BadRequestException}. Nhờ đó, các trường hợp nhảy cóc như \texttt{PENDING} sang \texttt{READY}, hoặc thay đổi đơn đã \texttt{COMPLETED} sang \texttt{PAID}, đều bị từ chối.
+
+Mã kiểm tra cốt lõi:
+\begin{verbatim}
+const allowedNextStates = VALID_TRANSITIONS[current] ?? [];
+if (!allowedNextStates.includes(next)) {
+  throw new BadRequestException(
+    `Chuyen trang thai khong hop le: ${current} -> ${next}`,
+  );
+}
+\end{verbatim}
+
+Quy tắc này thống nhất với quy trình nghiệp vụ: đơn phải thanh toán thành công trước khi chuyển sang khâu chuẩn bị; đơn chỉ hoàn thành sau khi đã sẵn sàng và được giao cho khách. Việc hủy đơn sau thanh toán cần có quy trình hoàn tiền riêng. Trong mã nguồn được đối chiếu, trạng thái \texttt{PAID -> CANCELLED} đã được cho phép, nhưng chưa thấy một endpoint hoàn tiền độc lập; vì vậy không mô tả hoàn tiền là chức năng đã được triển khai hoàn chỉnh.
+
+\section{Kỹ thuật Backend nâng cao}
+\label{sec:backend-advanced}
+
+\subsection{Idempotency -- Chống xử lý thanh toán lặp}
+
+\textbf{Vấn đề:} Trong lúc mạng chậm hoặc người dùng nhấn nút thanh toán nhiều lần, Client có thể gửi cùng một yêu cầu nhiều lần. Nếu Backend xử lý từng yêu cầu như giao dịch mới, khách hàng có nguy cơ bị ghi nhận thanh toán hoặc trừ tồn kho lặp.
+
+\textbf{Giải pháp của BrewLite:} Client gửi một mã duy nhất trong HTTP header \texttt{Idempotency-Key} cho mỗi lần thanh toán. Backend chuẩn hóa mã bằng \texttt{trim()}, kiểm tra mã không được để trống, sau đó tìm Payment theo trường \texttt{idempotencyKey}. Trường này được khai báo \texttt{@unique} trong Prisma schema, tạo ràng buộc duy nhất ở CSDL.
+
+Quy trình xử lý:
+\begin{enumerate}
+    \item Client tạo đơn hàng và nhận \texttt{orderId}.
+    \item Client sinh một \texttt{Idempotency-Key} cho lần thanh toán hiện tại và gửi kèm yêu cầu \texttt{POST /payments}.
+    \item Backend kiểm tra header. Nếu thiếu key, trả lỗi yêu cầu không hợp lệ.
+    \item Backend tìm Payment theo key. Nếu đã tồn tại, Backend trả lại bản ghi thanh toán và trạng thái đơn liên quan; không thực hiện lại bước trừ kho hay tạo Payment.
+    \item Nếu key chưa tồn tại, Backend xác minh đơn hàng và trạng thái, sau đó thực hiện nghiệp vụ thanh toán trong transaction.
+    \item Khi thanh toán thất bại giả lập, đơn chuyển sang \texttt{PAYMENT\_FAILED}, không tạo Payment và không trừ tồn kho. Khi người dùng thử lại, Client phải tạo key mới cho lần thử mới.
+\end{enumerate}
+
+Ví dụ yêu cầu:
+\begin{verbatim}
+POST /payments
+Authorization: Bearer <access_token>
+Content-Type: application/json
+Idempotency-Key: idem-order-1042-a81f
+
+{
+  "orderId": 1042,
+  "method": "WALLET",
+  "promoCode": "BREWLITE10",
+  "simulateFailure": false
+}
+\end{verbatim}
+
+Khi cùng một key được gửi lại sau khi giao dịch đã ghi nhận, Backend trả kết quả cũ với cờ \texttt{isIdempotentReplay: true}. Cơ chế này kết hợp với ràng buộc \texttt{Payment.idempotencyKey @unique} giúp ngăn tạo hai bản ghi thanh toán có cùng key.
+
+\textbf{Lưu ý kỹ thuật khi vận hành đồng thời:} Trong mã nguồn hiện tại, bước tìm Payment theo key được thực hiện trước transaction. Ràng buộc UNIQUE ở PostgreSQL là lớp bảo vệ cuối cùng khi hai request cùng key đến gần như đồng thời; tuy nhiên, nhánh xử lý lỗi unique constraint để đọc lại kết quả đã tạo chưa được thể hiện trong service snapshot. Với hệ thống triển khai thực tế, nên bắt lỗi Prisma \texttt{P2002}, truy vấn Payment vừa được tạo rồi trả kết quả cũ; đồng thời lưu hash của payload để từ chối trường hợp dùng lại một key cho nội dung thanh toán khác.
+
+\subsection{Optimistic Locking và Prisma Transaction -- Kiểm soát tồn kho}
+
+\textbf{Vấn đề:} Giả sử một sản phẩm chỉ còn một ly nhưng có hai khách hàng thanh toán cùng lúc. Nếu cả hai request đều đọc được \texttt{stock = 1} rồi lần lượt trừ kho mà không có kiểm soát đồng thời, tồn kho có thể bị âm hoặc bán vượt số lượng thực tế.
+
+\textbf{Cấu trúc hỗ trợ:} Thực thể \texttt{Product} có hai trường liên quan:
+\begin{itemize}
+    \item \texttt{stock}: số lượng sản phẩm còn trong kho.
+    \item \texttt{version}: phiên bản dữ liệu, mặc định bằng 1 và tăng sau mỗi lần cập nhật tồn kho thành công.
+\end{itemize}
+
+Trong transaction, Backend đọc sản phẩm, kiểm tra số lượng và dùng \texttt{updateMany} với điều kiện đồng thời: đúng \texttt{id}, đúng \texttt{version} vừa đọc và \texttt{stock >= qty}. Nếu cập nhật được một bản ghi, số lượng kho được giảm và version tăng một đơn vị. Nếu \texttt{count = 0}, nghĩa là dữ liệu đã thay đổi bởi giao dịch khác hoặc không còn đủ hàng; Backend ném \texttt{ConflictException} để yêu cầu Client tải lại dữ liệu/thử lại.
+
+Ví dụ lệnh cập nhật theo mã nguồn:
+\begin{verbatim}
+const updateResult = await tx.product.updateMany({
+  where: {
+    id: product.id,
+    version: product.version,
+    stock: { gte: item.qty },
+  },
+  data: {
+    stock: { decrement: item.qty },
+    version: { increment: 1 },
+  },
+});
+
+if (updateResult.count === 0) {
+  throw new ConflictException('Ton kho vua thay doi');
+}
+\end{verbatim}
+
+Các bước trừ kho, tạo Payment, cập nhật Order sang \texttt{PAID}, cập nhật tổng tiền và cộng điểm cho User được đặt trong cùng một Prisma transaction. Nếu bất kỳ bước nào phát sinh lỗi, transaction bị rollback, tránh tình trạng đã trừ kho nhưng không tạo được thanh toán hoặc đã tạo Payment nhưng đơn hàng chưa cập nhật.
+
+\textbf{Kết quả mong đợi trong tình huống đồng thời:} Nếu chỉ còn một ly và hai khách cùng mua một ly, giao dịch cập nhật version trước sẽ thành công; giao dịch còn lại không còn khớp version hoặc không còn đủ stock và bị từ chối. Tồn kho không thể giảm xuống số âm do điều kiện \texttt{stock >= qty}.
+
+\subsection{Loyalty và Promotion -- Khuyến mãi và tích lũy điểm}
+
+BrewLite hỗ trợ mã khuyến mãi và điểm thưởng trong lúc thanh toán. Mã khuyến mãi được khai báo trong \texttt{backend/src/orders/loyalty-promo.helper.ts}; Backend chuẩn hóa mã về chữ hoa trước khi tra cứu, kiểm tra tổng tiền tối thiểu và giới hạn mức giảm nếu có.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{2.4cm}|p{3.0cm}|p{3.0cm}|p{5.1cm}|}
+\hline
+\textbf{Mã ưu đãi} & \textbf{Điều kiện đơn} & \textbf{Mức giảm} & \textbf{Ý nghĩa} \\
+\hline
+FREESHIP & Từ 50.000đ & 15.000đ & Giảm cố định 15.000đ cho đơn đủ điều kiện. \\
+\hline
+BREWLITE10 & Từ 40.000đ & 10\%, tối đa 20.000đ & Tính 10\% trên giá trị đơn, không vượt quá 20.000đ. \\
+\hline
+SGU2026 & Từ 30.000đ & 10.000đ & Ưu đãi cố định dành cho sinh viên theo mã chương trình. \\
+\hline
+\end{tabular}
+\end{center}
+
+Nếu mã không tồn tại hoặc tổng tiền chưa đạt mức tối thiểu, Backend từ chối yêu cầu bằng \texttt{BadRequestException}. Nếu không nhập mã, số tiền giảm bằng 0. Tổng thanh toán cuối cùng được tính theo công thức:
+
+\begin{center}
+\texttt{finalTotal = max(0, subtotal - discountAmount)}
+\end{center}
+
+Điểm Loyalty được cộng sau khi thanh toán thành công, dựa trên số tiền khách thực trả sau khuyến mãi. Quy tắc trong mã nguồn: cứ mỗi 10.000đ thanh toán thực tế nhận 1 điểm; phần lẻ dưới 10.000đ không được làm tròn lên.
+
+\begin{center}
+\texttt{earnedPoints = floor(finalTotal / 10.000)}
+\end{center}
+
+Ví dụ: đơn hàng có giá trị 100.000đ, áp mã BREWLITE10 được giảm 10.000đ, khách thanh toán 90.000đ. Số điểm được cộng là \texttt{floor(90.000 / 10.000) = 9} điểm. Điểm được tăng bằng thao tác cộng dồn \texttt{loyaltyPoints.increment} cho User trong cùng transaction với thanh toán.
+
+\textbf{Phạm vi dữ liệu:} Trong Prisma schema hiện tại, điểm được lưu tại \texttt{User.loyaltyPoints}; các mã khuyến mãi là cấu hình trong mã nguồn, chưa có thực thể Promotion riêng. Schema cũng chưa có cột lưu \texttt{promoCode} hoặc \texttt{discountAmount} trên Order/Payment, do đó lịch sử chi tiết mã đã áp dụng hiện được trả trong phản hồi thanh toán, chưa được lưu thành một bản ghi khuyến mãi riêng.
+
+\section{Danh sách API Endpoints}
+\label{sec:api-endpoints}
+
+Các endpoint dưới đây được tổng hợp từ yêu cầu nhóm, lời gọi \texttt{fetch()} trong Frontend và Controller/Service có trong snapshot Backend được cung cấp. Bảng có phân biệt endpoint đã thấy trong mã nguồn và endpoint được Frontend sử dụng như hợp đồng tích hợp; không coi endpoint contract là bằng chứng rằng Controller tương ứng đã được tích hợp vào \texttt{AppModule}.
+
+\subsection{Danh sách endpoint}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{|p{1.8cm}|p{3.2cm}|p{2.3cm}|p{6.2cm}|}
+\hline
+\textbf{Method} & \textbf{Endpoint} & \textbf{Xác thực} & \textbf{Chức năng / dữ liệu chính} \\
+\hline
+POST & \texttt{/auth/register} & Không & Đăng ký tài khoản bằng email và password; Frontend gửi JSON gồm hai trường này. \\
+\hline
+POST & \texttt{/auth/login} & Không & Đăng nhập; trả về \texttt{access\_token} để Client lưu và gửi ở các request cần xác thực. \\
+\hline
+GET & \texttt{/products} & Không & Lấy danh sách đồ uống đang hiển thị trên thực đơn. Đã thấy route trong \texttt{AppController}. \\
+\hline
+GET & \texttt{/products/:id} & Không & Lấy chi tiết một sản phẩm theo ID; trả lỗi 404 nếu không tìm thấy. Đã thấy route trong \texttt{AppController}. \\
+\hline
+POST & \texttt{/orders} & Bearer JWT & Tạo đơn từ các dòng hàng trong giỏ; Frontend gửi \texttt{items[]} gồm \texttt{productId}, \texttt{size}, \texttt{qty}, \texttt{lineTotal}. \\
+\hline
+GET & \texttt{/orders/me} & Bearer JWT & Lấy lịch sử đơn của người dùng hiện tại; Frontend gọi với header Authorization. \\
+\hline
+POST & \texttt{/payments} & Bearer JWT + Idempotency-Key & Xử lý thanh toán đơn: nhận \texttt{orderId}, \texttt{method}, \texttt{promoCode} (không bắt buộc), \texttt{simulateFailure} (không bắt buộc). \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Chi tiết API thanh toán}
+
+Endpoint \texttt{POST /payments} được khai báo bởi \texttt{PaymentsController}. Header bắt buộc là \texttt{Idempotency-Key}. Request body được kiểm tra bằng DTO:
+\begin{verbatim}
+{
+  "orderId": 1042,
+  "method": "WALLET",
+  "promoCode": "BREWLITE10",
+  "simulateFailure": false
+}
+\end{verbatim}
+
+Trong đó \texttt{orderId} phải là số nguyên lớn hơn hoặc bằng 1; \texttt{method} chỉ nhận \texttt{WALLET} hoặc \texttt{CARD}; \texttt{promoCode} và \texttt{simulateFailure} là tùy chọn. Khi thành công, phản hồi có thông tin Payment, trạng thái Order, phần giá gốc/giảm giá/tổng thanh toán cuối và số điểm Loyalty được cộng. Khi request lặp lại với key đã xử lý, phản hồi đánh dấu \texttt{isIdempotentReplay: true}.
+
+\subsection{Mã phản hồi và xử lý lỗi}
+
+\begin{itemize}
+    \item \textbf{200/201:} Yêu cầu đọc hoặc xử lý thành công (mã HTTP chính xác phụ thuộc cấu hình Controller).
+    \item \textbf{400 Bad Request:} Thiếu Idempotency-Key, DTO không hợp lệ, mã khuyến mãi không hợp lệ hoặc chuyển trạng thái không được phép.
+    \item \textbf{404 Not Found:} Không tìm thấy đơn hàng hoặc sản phẩm tương ứng.
+    \item \textbf{409 Conflict:} Version/tồn kho đã thay đổi bởi giao dịch khác; Client nên tải lại thông tin sản phẩm và yêu cầu khách xác nhận lại.
+    \item \textbf{401/403:} Request thiếu hoặc không có quyền sử dụng access token đối với các endpoint yêu cầu đăng nhập.
+\end{itemize}
+
+\textbf{Ghi chú bàn giao API:} Trong snapshot Backend hiện có, \texttt{AppController} cho thấy hai route \texttt{GET /products} và \texttt{GET /products/:id}; \texttt{PaymentsController/PaymentsService} có mã xử lý thanh toán nhưng chưa được liệt kê trong \texttt{AppModule} của snapshot này. Các route \texttt{/auth/register}, \texttt{/auth/login}, \texttt{/orders} và \texttt{/orders/me} được Frontend gọi và tài liệu phân công yêu cầu, nhưng controller tương ứng không xuất hiện trong snapshot đã đối chiếu. Khi hợp nhất báo cáo với mã nguồn nhánh \texttt{main} hiện tại, nhóm cần kiểm tra lại trạng thái tích hợp các module này.
+
+\section{Thiết kế CSDL -- 5 thực thể cốt lõi}
+\label{sec:database-entities}
+
+CSDL PostgreSQL được truy cập qua Prisma ORM. Prisma schema trong snapshot định nghĩa năm thực thể: \texttt{Product}, \texttt{User}, \texttt{Order}, \texttt{OrderItem} và \texttt{Payment}, cùng enum \texttt{OrderStatus}.
+
+\subsection{Mô tả các bảng}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{|p{2.0cm}|p{2.2cm}|p{6.0cm}|p{3.4cm}|}
+\hline
+\textbf{Thực thể} & \textbf{Khóa chính} & \textbf{Các thuộc tính chính} & \textbf{Ràng buộc / ý nghĩa} \\
+\hline
+Product & \texttt{id} & \texttt{name}, \texttt{price}, \texttt{imageUrl}, \texttt{stock}, \texttt{version} & \texttt{stock} mặc định 0; \texttt{version} mặc định 1 để Optimistic Locking. \\
+\hline
+User & \texttt{id} & \texttt{email}, \texttt{passwordHash}, \texttt{loyaltyPoints} & \texttt{email} UNIQUE; không lưu mật khẩu dạng rõ; điểm mặc định 0. \\
+\hline
+Order & \texttt{id} & \texttt{userId}, \texttt{status}, \texttt{total}, \texttt{createdAt} & FK \texttt{userId} đến User; trạng thái mặc định PENDING; thời gian tạo mặc định now(). \\
+\hline
+OrderItem & \texttt{id} & \texttt{orderId}, \texttt{productId}, \texttt{size}, \texttt{topping}, \texttt{qty}, \texttt{lineTotal} & FK đến Order và Product; thể hiện từng món, size, topping, số lượng và thành tiền. \\
+\hline
+Payment & \texttt{id} & \texttt{orderId}, \texttt{idempotencyKey}, \texttt{amount}, \texttt{method}, \texttt{createdAt} & FK \texttt{orderId} đến Order; \texttt{idempotencyKey} UNIQUE để chống ghi nhận lặp. \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Quan hệ giữa các thực thể}
+
+\begin{itemize}
+    \item \textbf{User -- Order:} Một User có thể tạo nhiều Order; mỗi Order thuộc về một User (quan hệ 1--N).
+    \item \textbf{Order -- OrderItem:} Một Order chứa một hoặc nhiều OrderItem; mỗi OrderItem thuộc một Order (quan hệ 1--N).
+    \item \textbf{Product -- OrderItem:} Một Product có thể xuất hiện trong nhiều OrderItem; mỗi OrderItem tham chiếu một Product (quan hệ 1--N).
+    \item \textbf{Order -- Payment:} Một Order có quan hệ 1--N với Payment theo Prisma schema; mỗi Payment tham chiếu một Order. Trong quy trình chuẩn của đồ án, mỗi lần thanh toán thành công tương ứng một bản ghi Payment; schema hiện không áp đặt UNIQUE trên \texttt{Payment.orderId}.
+\end{itemize}
+
+\begin{verbatim}
+User (1) -------- (N) Order (1) -------- (N) OrderItem (N) -------- (1) Product
+                         |
+                         |
+                        (1)
+                         |
+                        (N)
+                       Payment
+\end{verbatim}
+
+\subsection{Ràng buộc dữ liệu và lưu ý thiết kế}
+
+\begin{itemize}
+    \item Khóa chính \texttt{id} của các bảng dùng số nguyên tự tăng.
+    \item \texttt{User.email} và \texttt{Payment.idempotencyKey} có ràng buộc UNIQUE.
+    \item Các trường quan hệ tạo khóa ngoại để bảo đảm Order không trỏ đến User không tồn tại; OrderItem không trỏ đến Order/Product không tồn tại; Payment không trỏ đến Order không tồn tại.
+    \item \texttt{Order.status} dùng enum, tránh lưu các giá trị trạng thái tùy ý.
+    \item \texttt{Product.version} tăng sau mỗi lần trừ kho thành công nhằm phát hiện cập nhật cạnh tranh.
+    \item Schema snapshot sử dụng kiểu \texttt{Float} cho giá và tổng tiền. Với hệ thống thương mại vận hành thực tế, nên cân nhắc đổi sang \texttt{Decimal} hoặc kiểu số nguyên theo đơn vị đồng để tránh sai số dấu phẩy động khi tính tiền.
+\end{itemize}
+
+\section{Kịch bản Sprint Review}
+\label{sec:sprint-review}
+
+\subsection{Mục tiêu buổi Review}
+
+Sprint Review là buổi trình bày Increment mà nhóm đã hoàn thành cho giảng viên và các bên liên quan. Nhóm cần chứng minh một luồng đặt đồ uống có thể theo dõi được từ thực đơn đến thanh toán, đồng thời thể hiện các trường hợp ngoại lệ quan trọng ở Backend. Buổi demo không thay thế kiểm thử; các kết quả như thời gian phản hồi dưới 500ms hoặc khả năng chịu tải 1.000 lượt đồng thời chỉ được công bố khi nhóm đã đo kiểm và có bằng chứng.
+
+\subsection{Thành phần và agenda đề xuất}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{2.5cm}|p{2.0cm}|p{8.8cm}|}
+\hline
+\textbf{Phần} & \textbf{Thời lượng} & \textbf{Nội dung} \\
+\hline
+Mở đầu & 2 phút & Product Owner/nhóm trưởng nhắc lại mục tiêu Sprint, phạm vi tính năng và tiêu chí nghiệm thu. \\
+\hline
+Demo giao diện & 4 phút & Mở trang thực đơn, xem chi tiết đồ uống, chọn size/topping, thêm vào giỏ và đi đến thanh toán. \\
+\hline
+Demo Backend & 5 phút & Tạo đơn, gửi thanh toán với WALLET/CARD, kiểm tra trạng thái PAID, lịch sử đơn và dữ liệu liên quan trong CSDL. \\
+\hline
+Demo ngoại lệ & 4 phút & Bật \texttt{simulateFailure} để minh họa PAYMENT\_FAILED; thử key Idempotency-Key đã dùng; kiểm tra trường hợp tồn kho bị thay đổi hoặc không đủ. \\
+\hline
+Nghiệm thu & 3 phút & Đối chiếu từng tiêu chí chấp nhận, trình bày kiểm thử đã chạy và ghi nhận câu hỏi/phản hồi của giảng viên. \\
+\hline
+Tổng kết & 2 phút & Nhóm trưởng tóm tắt phần hoàn thành, phần còn hạn chế và kế hoạch xử lý sau Review. \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Lời dẫn demo gợi ý}
+
+\begin{enumerate}
+    \item \textbf{Người trình bày Frontend:} ``Em mở thực đơn BrewLite, chọn một đồ uống, tùy chỉnh size/topping và thêm vào giỏ hàng. Ở trang thanh toán, người dùng chọn phương thức WALLET hoặc CARD và có thể nhập mã ưu đãi.''
+    \item \textbf{Người trình bày Backend:} ``Khi xác nhận, Frontend tạo đơn hàng rồi gửi request thanh toán đến NestJS. Backend kiểm tra Idempotency-Key, trạng thái đơn, tồn kho và áp dụng khuyến mãi. Nếu thành công, hệ thống cập nhật Order sang PAID, lưu Payment và cộng điểm cho User trong transaction.''
+    \item \textbf{Demo tình huống lỗi:} ``Nhóm bật chế độ giả lập cổng thanh toán thất bại. Đơn chuyển sang PAYMENT\_FAILED và tồn kho được giữ nguyên. Khi thử lại, Client dùng key mới cho lần thanh toán mới.''
+    \item \textbf{Kết thúc:} ``Sau khi nhân viên nhận đơn, trạng thái lần lượt chuyển PREPARING, READY và COMPLETED. Các bước chuyển trạng thái không hợp lệ bị Backend từ chối.''
+\end{enumerate}
+
+\subsection{Tiêu chí nghiệm thu đề xuất}
+
+\begin{itemize}
+    \item Người dùng xem được danh sách và chi tiết đồ uống.
+    \item Người dùng đăng nhập trước khi tạo đơn và thanh toán.
+    \item Đơn hàng được tạo với các dòng hàng, size, topping và số lượng.
+    \item Thanh toán thành công cập nhật trạng thái Order và lưu Payment.
+    \item Gửi lại cùng Idempotency-Key sau khi đã xử lý không tạo thêm Payment hoặc trừ kho lần nữa.
+    \item Thanh toán giả lập thất bại chuyển đơn sang PAYMENT\_FAILED và không trừ kho.
+    \item Optimistic Locking ngăn hai giao dịch cùng bán vượt số lượng tồn.
+    \item Mã khuyến mãi được kiểm tra điều kiện; điểm Loyalty tính trên tổng tiền thực trả.
+\end{itemize}
+
+\section{Kịch bản Sprint Retrospective}
+\label{sec:sprint-retrospective}
+
+Sau Sprint Review, nhóm tổ chức Retrospective nội bộ khoảng 15--20 phút. Mục đích là nhìn lại cách phối hợp, chất lượng sản phẩm và cách làm việc; tập trung vào cải tiến cụ thể thay vì quy trách nhiệm cá nhân.
+
+\subsection{Điều làm tốt (Keep)}
+
+\begin{itemize}
+    \item Nhóm thống nhất được stack Next.js, NestJS, PostgreSQL và Prisma, giúp Frontend/Backend có hợp đồng tích hợp rõ ràng.
+    \item Nghiệp vụ thanh toán có các cơ chế bảo vệ quan trọng: state machine, Idempotency-Key, transaction và Optimistic Locking.
+    \item Logic khuyến mãi và tính điểm Loyalty được tách thành helper, thuận tiện kiểm thử độc lập.
+    \item Có test nghiệp vụ cho luồng trạng thái, request thanh toán lặp, cạnh tranh tồn kho và tính điểm sau khuyến mãi.
+\end{itemize}
+
+\subsection{Điều cần cải thiện (Problem)}
+
+\begin{itemize}
+    \item Cần kiểm tra tính đồng bộ giữa các endpoint Frontend đang gọi và Controller thực sự được import trong \texttt{AppModule}; tránh tình trạng giao diện có request nhưng Backend chưa đăng ký route.
+    \item Cần bổ sung nhánh xử lý unique constraint khi hai request cùng Idempotency-Key đến đồng thời; nên lưu fingerprint của request để phát hiện key bị tái sử dụng với payload khác.
+    \item Cần xác minh lại trạng thái đơn ngay bên trong transaction để giảm nguy cơ hai thao tác đồng thời cùng xử lý một đơn.
+    \item Cần hoàn thiện chính sách hủy đơn sau thanh toán và nghiệp vụ hoàn tiền; không nên chỉ đổi trạng thái CANCELLED mà thiếu đối soát giao dịch.
+    \item Cần lưu thông tin mã khuyến mãi/số tiền giảm vào dữ liệu đơn hàng hoặc bản ghi giao dịch để có thể truy vết lịch sử.
+    \item Cần chuẩn hóa kiểu tiền tệ sang Decimal hoặc số nguyên đơn vị đồng và bổ sung kiểm thử tích hợp với PostgreSQL/Mock Payment Gateway.
+\end{itemize}
+
+\subsection{Hành động cải tiến (Action Items)}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{1.0cm}|p{7.2cm}|p{3.0cm}|p{2.0cm}|}
+\hline
+\textbf{STT} & \textbf{Hành động} & \textbf{Người phụ trách} & \textbf{Ưu tiên} \\
+\hline
+1 & Đối chiếu route Frontend với Controller/Module Backend; cập nhật danh sách endpoint chuẩn. & Backend + Frontend & Cao \\
+\hline
+2 & Bắt lỗi Prisma P2002 cho Idempotency-Key và trả lại kết quả Payment đã tạo. & Backend & Cao \\
+\hline
+3 & Bổ sung kiểm thử tích hợp hai request thanh toán đồng thời và hai khách mua sản phẩm cuối cùng. & Backend/QA & Cao \\
+\hline
+4 & Chốt quy tắc hủy đơn sau PAID và mô tả rõ cách hoàn tiền trong Mock Gateway. & PO + Backend & Cao \\
+\hline
+5 & Bổ sung lưu vết Promotion/discount và chuyển trường tiền sang Decimal hoặc số nguyên. & Backend & Trung bình \\
+\hline
+6 & Cập nhật README, ví dụ request/response và hướng dẫn chạy test cho thành viên mới. & Cả nhóm & Trung bình \\
+\hline
+\end{tabular}
+\end{center}
+
+\subsection{Kết luận và định hướng cải tiến}
+
+Qua buổi Retrospective, nhóm thống nhất tiếp tục duy trì
+việc phân chia nghiệp vụ thành các module rõ ràng,
+đồng thời chú trọng kiểm thử cả những trường hợp
+thành công và thất bại. Bên cạnh đó, nhóm nhận thấy
+cần ưu tiên cải thiện tính nhất quán của dữ liệu trong
+quá trình thanh toán và xử lý đơn hàng. Những nội dung
+chưa hoàn thiện sẽ được bổ sung vào Product Backlog
+để tiếp tục theo dõi và thực hiện trong Sprint tiếp theo.
+
+Nhìn chung, các nghiệp vụ Backend của BrewLite tập trung
+vào việc quản lý vòng đời đơn hàng, bảo đảm thanh toán
+không bị ghi nhận trùng lặp, kiểm soát tồn kho khi có
+nhiều yêu cầu đồng thời và tính điểm thưởng dựa trên
+số tiền khách hàng thực trả. Hệ thống sử dụng năm thực thể
+chính gồm Product, User, Order, OrderItem và Payment
+để quản lý thực đơn, tài khoản người dùng, đơn hàng,
+chi tiết đơn hàng và thông tin thanh toán.

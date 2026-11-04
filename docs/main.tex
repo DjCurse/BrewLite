@@ -2,9 +2,17 @@
 \usepackage[utf8]{vietnam}
 \usepackage{graphicx}
 \usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{enumitem}
 \usepackage{hyperref}
 \usepackage{geometry}
 \geometry{a4paper, margin=2.5cm}
+
+\makeatletter
+\@addtoreset{table}{section}
+\makeatother
+\renewcommand{\thetable}{\thesection.\arabic{table}}
 
 \title{\textbf{BÁO CÁO BÀI TẬP LỚN: BREWLITE}\\ \large Môn: Công nghệ Phần mềm (Quy trình Agile Scrum)}
 \author{Nhóm Sinh Viên - Đại Học Sài Gòn}

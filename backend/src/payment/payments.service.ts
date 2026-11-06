@@ -30,12 +30,6 @@ export class PaymentsService {
         'Thiếu header "Idempotency-Key" để chống thanh toán lặp',
       );
     }
-
-    // =========================================================================
-    // 1. KIỂM TRA IDEMPOTENCY (Tính lũy đẳng - Task 10.2)
-    // Nếu Idempotency-Key này đã từng được xử lý, trả về ngay kết quả cũ,
-    // tuyệt đối không trừ tiền hay trừ tồn kho lần thứ 2.
-    // =========================================================================
     const existingPayment = await this.prisma.payment.findUnique({
       where: { idempotencyKey: cleanKey },
       include: { order: true },
@@ -49,10 +43,6 @@ export class PaymentsService {
         orderStatus: existingPayment.order.status,
       };
     }
-
-    // =========================================================================
-    // 2. TẢI ĐƠN HÀNG & KIỂM TRA MÁY TRẠNG THÁI (State Machine - Task 10.1)
-    // =========================================================================
     const order = await this.prisma.order.findUnique({
       where: { id: dto.orderId },
       include: { items: true },
@@ -64,8 +54,6 @@ export class PaymentsService {
 
     const currentStatus = order.status as OrderStatus;
 
-    // Nếu đơn đang ở PAYMENT_FAILED (khách bấm thử thanh toán lại),
-    // chuyển hợp lệ về PENDING trước khi xử lý tiếp theo sơ đồ Mục 9.1
     if (currentStatus === OrderStatus.PAYMENT_FAILED) {
       assertTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.PENDING);
     } else if (currentStatus !== OrderStatus.PENDING) {
@@ -73,10 +61,6 @@ export class PaymentsService {
       assertTransition(currentStatus, OrderStatus.PAID);
     }
 
-    // =========================================================================
-    // 3. MÔ PHỎNG CỔNG THANH TOÁN LỖI (US-05 & Sơ đồ Mục 9.1)
-    // Nếu thanh toán thất bại -> Đơn chuyển sang PAYMENT_FAILED, giữ nguyên tồn kho
-    // =========================================================================
     if (dto.simulateFailure) {
       assertTransition(OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED);
 
@@ -96,22 +80,12 @@ export class PaymentsService {
     // Kiểm tra hợp lệ chuyển từ PENDING -> PAID
     assertTransition(OrderStatus.PENDING, OrderStatus.PAID);
 
-    // =========================================================================
-    // 4. TÍNH KHUYẾN MÃI & ĐIỂM THƯỞNG LOYALTY (Task 10.4)
-    // =========================================================================
     const { discountAmount, finalTotal, appliedCode } = applyPromoCode(
       order.total,
       dto.promoCode,
     );
     const earnedPoints = calculateLoyaltyPoints(finalTotal);
-
-    // =========================================================================
-    // 5. GIAO DỊCH NGUYÊN TỬ (PRISMA TRANSACTION) + OPTIMISTIC LOCKING (Task 10.3)
-    // Tất cả các bước: Trừ kho (kèm kiểm tra version) -> Tạo Payment -> Đổi trạng thái Order
-    // -> Cộng điểm Loyalty cho User đều nằm trong 1 Transaction duy nhất.
-    // =========================================================================
     return await this.prisma.$transaction(async (tx) => {
-      // 5.1. Duyệt từng món trong đơn để trừ kho với Khóa lạc quan (Optimistic Locking)
       for (const item of order.items) {
         const product = await tx.product.findUnique({
           where: { id: item.productId },

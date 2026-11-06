@@ -28,7 +28,7 @@ Luồng Happy Path mô tả hành trình thuận lợi nhất của một khách
   \endhead
   1 & Khách hàng & Mở ứng dụng BrewLite trên trình duyệt (trang chủ). & Frontend gửi yêu cầu \texttt{GET /products} đến Backend. \\
   \hline
-  2 & Hệ thống & Hiển thị thực đơn dạng lưới, mỗi ô gồm hình ảnh, tên, mô tả ngắn và giá. & Trong lúc chờ dữ liệu hiện ``Đang tải menu...''; nếu kho trống hiện ``Hiện tại hết món''. \\
+  2 & Hệ thống & Hiển thị thực đơn dạng lưới, mỗi ô gồm hình ảnh, tên, mô tả ngắn và giá. & Trong lúc chờ dữ liệu hiện hiệu ứng khung tải (skeleton); nếu danh sách trống hiện thông báo ``Không tìm thấy món đồ uống phù hợp''. \\
   \hline
   3 & Khách hàng & Tìm món theo tên hoặc lọc theo nhóm (Trà sữa, Matcha, Cà phê, Trà trái cây), rồi bấm ``Chọn món''. & Mở trang chi tiết sản phẩm \texttt{/products/\{id\}}. \\
   \hline
@@ -38,7 +38,7 @@ Luồng Happy Path mô tả hành trình thuận lợi nhất của một khách
   \hline
   6 & Khách hàng & Mở trang giỏ hàng, chỉnh số lượng bằng nút ``$-$''/``$+$'', xóa món không cần. & Thành tiền từng món và tổng cộng tự cập nhật. \\
   \hline
-  7 & Khách hàng & Bấm ``Thanh toán''. & Hệ thống kiểm tra token đăng nhập: nếu chưa có, chuyển sang \texttt{/login} (bước 8); nếu đã có, chuyển sang \texttt{/checkout} (bước 9). \\
+  7 & Khách hàng & Bấm ``Thanh toán''. & Hệ thống kiểm tra token: nếu đã có, chuyển sang \texttt{/checkout}; nếu chưa có, chuyển sang \texttt{/login?redirect=/checkout}. \\ 
   \hline
   8 & Khách hàng & Đăng nhập bằng email và mật khẩu (hoặc đăng ký tài khoản mới). & Backend kiểm tra, trả về chuỗi JWT \texttt{access\_token}; Frontend lưu token rồi đưa khách quay lại trang thanh toán. \\
   \hline
@@ -46,9 +46,9 @@ Luồng Happy Path mô tả hành trình thuận lợi nhất của một khách
   \hline
   10 & Khách hàng & (Tùy chọn) Nhập mã khuyến mãi như \texttt{SGU2026}, \texttt{BREWLITE10}, \texttt{FREESHIP}. & Hệ thống kiểm tra điều kiện của mã và cập nhật ``Tổng thanh toán''. \\
   \hline
-  11 & Khách hàng & Bấm ``Xác nhận trả''. & Frontend gửi yêu cầu tạo đơn và thanh toán kèm \texttt{Authorization: Bearer <token>} và \texttt{Idempotency-Key}; đơn được tạo ở trạng thái \texttt{PENDING}. \\
+  11 & Khách hàng & Bấm ``Xác nhận trả''. & Frontend gọi \texttt{POST /orders} tạo đơn (\texttt{PENDING}) rồi tiếp tục gọi \texttt{POST /payments} kèm \texttt{Idempotency-Key} và \texttt{orderId}. \\
   \hline
-  12 & Backend & Gọi cổng thanh toán giả lập (Mock Payment Gateway). & Thanh toán thành công: đơn chuyển \texttt{PENDING} $\rightarrow$ \texttt{PAID}, tồn kho được trừ, điểm thưởng (Loyalty) được cộng. \\
+  12 & Backend & Xử lý giao dịch thanh toán thông qua Mock Payment Gateway. & Thanh toán thành công: đơn chuyển \texttt{PENDING} $\rightarrow$ \texttt{PAID}, tồn kho được trừ, điểm thưởng (Loyalty) được cộng. \\
   \hline
   13 & Hệ thống & Hiển thị màn hình ``Đặt hàng thành công''. & Hiện mã đơn, trạng thái \texttt{PAID}, số tiền đã thanh toán, điểm thưởng nhận được và danh sách lịch sử đơn của khách. \\
   \hline
@@ -118,53 +118,45 @@ Toàn bộ hệ thống (Frontend, Backend, PostgreSQL) được khai báo trong
 \label{sec:wireframe}
 %==============================================================
 
-Phần này mô tả bố cục năm màn hình cốt lõi, dựa trên giao diện thực tế của nhóm. Với mỗi màn hình, các thành phần được trình bày theo vị trí trên giao diện (từ trên xuống, từ trái sang phải), kèm thao tác của người dùng và phản hồi của hệ thống. Ngoài năm màn hình này, hệ thống còn có trang Đăng nhập và Đăng ký (Hình~\ref{fig:ui-auth}) phục vụ bước xác thực.
+Phần này mô tả bố cục năm màn hình cốt lõi, dựa trên giao diện thực tế của nhóm. Các thành phần trong bảng được sắp xếp theo đúng \textbf{thứ tự thao tác (Flow của người dùng từ 1 đến n)} để tiện cho việc đánh dấu chỉ dẫn trên ảnh chụp màn hình.
 
 %--------------------------------------------------------------
 \subsubsection{Màn hình 1: Menu (Trang chủ)}
 \label{subsec:wf-menu}
 %--------------------------------------------------------------
-
 \textbf{Mục đích:} giúp khách xem toàn bộ thực đơn và nhanh chóng chọn món.
 
-\begin{figure}[htbp]
-  \centering
-  \chenHinh{width=0.95\textwidth}{Screenshot 2026-10-30 162619.png}
-  \caption{Màn hình Menu (Trang chủ)}
-  \label{fig:wf-menu}
-\end{figure}
+\begin{minipage}{\textwidth}
+\centering
+\chenHinh{width=0.95\textwidth}{Screenshot 2026-10-30 162619.png}
+\captionof{figure}{Màn hình Menu (Trang chủ)}
+\label{fig:wf-menu}
+\end{minipage}
+\vspace{10pt}
 
-\begin{longtable}{|p{3.2cm}|p{4.2cm}|p{6.1cm}|}
-  \caption{Các thành phần của màn hình Menu}\label{tab:wf-menu}\\
+\begin{longtable}{|p{1.0cm}|p{2.5cm}|p{4.5cm}|p{5.5cm}|}
+  \caption{Thứ tự thao tác trên màn hình Menu}\label{tab:wf-menu}\\
   \hline
-  \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
   \endfirsthead
   \hline
-  \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
   \endhead
-  Thanh đầu trang, bên trái & Biểu tượng và chữ BrewLite & Bấm để quay về trang chủ. \\
+  (1) & Dưới banner, bên phải & Ô tìm kiếm ``Tìm món bạn yêu thích...'' & Khách gõ tên món; danh sách món bên dưới lọc theo từ khóa. \\
   \hline
-  Thanh đầu trang, giữa & Liên kết ``Thực đơn'', ``Về BrewLite'', ``Liên hệ'' & Bấm để chuyển đến mục tương ứng; mục hiện tại được tô đậm. \\
+  (2) & Dưới tiêu đề & Các nút nhóm món: Tất cả, Trà sữa, Matcha, Cà phê... & Bấm để lọc món theo nhóm; nút đang chọn được tô màu xanh đậm. \\
   \hline
-  Thanh đầu trang, bên phải & Nút ``Giỏ hàng'' kèm số lượng món & Bấm để mở trang giỏ hàng; số lượng cập nhật theo số món đã thêm. \\
+  (3) & Lưới món & Các thẻ sản phẩm (ảnh, tên, mô tả ngắn, giá) & Cuộn trang xem danh sách. Hiện khung tải (skeleton) khi chờ dữ liệu, hoặc thông báo ``Không tìm thấy món đồ uống phù hợp'' nếu trống. \\
   \hline
-  Thanh đầu trang, bên phải & Nút ``Lịch sử đơn'' và ``Đăng xuất'' & ``Lịch sử đơn'' mở danh sách đơn của khách; ``Đăng xuất'' xóa phiên đăng nhập. \\
+  (4) & Lưới món & Nút ``Chọn món'' trên từng thẻ sản phẩm & Bấm ``Chọn món'' để chuyển hướng mở trang chi tiết sản phẩm. \\
   \hline
-  Khối banner & Chữ ``Sip Fresh, Live Better'', dòng giới thiệu và ảnh quán & Chỉ mang tính giới thiệu, không có thao tác. \\
+  (5) & Thanh đầu trang, bên phải & Nút ``Giỏ hàng'' kèm số lượng món & Bấm để mở trang giỏ hàng; số lượng cập nhật theo số món đã thêm. \\
   \hline
-  Dưới banner, bên trái & Tiêu đề ``Hôm nay, bạn uống gì?'' và dòng mô tả & Giới thiệu khu vực thực đơn. \\
+  (6) & Thanh đầu trang, giữa & Liên kết ``Thực đơn'', ``Về BrewLite'', ``Liên hệ'' & Bấm để chuyển đến mục tương ứng; mục hiện tại được tô đậm. \\
   \hline
-  Dưới banner, bên phải & Ô tìm kiếm ``Tìm món bạn yêu thích...'' & Khách gõ tên món; danh sách bên dưới lọc theo từ khóa. \\
-  \hline
-  Dưới tiêu đề & Các nút nhóm món: Tất cả, Trà sữa, Matcha, Cà phê, Trà trái cây & Bấm để lọc món theo nhóm; nút đang chọn được tô màu xanh đậm. \\
-  \hline
-  Dòng thông tin & ``4 món ngon dành cho bạn'' và ``Gợi ý từ BrewLite'' & Cho biết số món đang hiển thị. \\
-  \hline
-  Lưới món & Các thẻ sản phẩm gồm ảnh, tên, mô tả ngắn, giá và nút ``Chọn món'' & Bấm ``Chọn món'' để mở trang chi tiết. Hiện ``Đang tải menu...'' khi chờ dữ liệu và ``Hiện tại hết món'' khi không có sản phẩm. \\
-  \hline
-  Cuối trang & Chân trang ``BrewLite -- Một chút tươi, một ngày vui.'' & Không có thao tác. \\
+  (7) & Thanh đầu trang, bên phải & Nút ``Lịch sử đơn'' và ``Đăng xuất'' & ``Lịch sử đơn'' mở danh sách đơn của khách; ``Đăng xuất'' xóa phiên đăng nhập. \\
   \hline
 \end{longtable}
 
@@ -174,41 +166,37 @@ Phần này mô tả bố cục năm màn hình cốt lõi, dựa trên giao di�
 \subsubsection{Màn hình 2: Chi tiết sản phẩm}
 \label{subsec:wf-chitiet}
 %--------------------------------------------------------------
-
 \textbf{Mục đích:} cho phép khách xem thông tin món, chọn size, topping và thêm vào giỏ.
 
-\begin{figure}[htbp]
-  \centering
-  \chenHinh{width=0.95\textwidth}{Screenshot 2026-10-30 163213.png}
-  \caption{Màn hình Chi tiết sản phẩm}
-  \label{fig:wf-chitiet}
-\end{figure}
+\begin{minipage}{\textwidth}
+\centering
+\chenHinh{width=0.95\textwidth}{Screenshot 2026-10-30 163213.png}
+\captionof{figure}{Màn hình Chi tiết sản phẩm}
+\label{fig:wf-chitiet}
+\end{minipage}
+\vspace{10pt}
 
-\begin{longtable}{|p{3.2cm}|p{4.2cm}|p{6.1cm}|}
-  \caption{Các thành phần của màn hình Chi tiết sản phẩm}\label{tab:wf-chitiet}\\
+\begin{longtable}{|p{1.0cm}|p{2.5cm}|p{4.5cm}|p{5.5cm}|}
+  \caption{Thứ tự thao tác trên màn hình Chi tiết sản phẩm}\label{tab:wf-chitiet}\\
   \hline
-  \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
   \endfirsthead
   \hline
-  \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
   \endhead
-  Thanh đầu trang & Giống màn hình Menu: logo, liên kết điều hướng, nút ``Giỏ hàng'', ``Lịch sử đơn'', ``Đăng xuất'' & Số lượng trên nút ``Giỏ hàng'' tăng khi thêm món. \\
+  (1) & Mục ``Chọn size'' & Ba nút S (giá gốc), M ($+$5.000\,đ), L ($+$10.000\,đ) & Chọn \textbf{đúng một} size (bắt buộc). Nút được chọn hiện dấu tích và đổi màu nền. Tổng tiền cập nhật theo size. \\
   \hline
-  Phía trên nội dung & Đường dẫn ``Thực đơn / Cà phê / Bạc xỉu'' & Bấm ``Thực đơn'' để quay lại danh sách món. \\
+  (2) & Mục ``Thêm topping'' & Hai ô chọn ``Trân châu'' và ``Kem'' ($+$10.000\,đ/món) & Tick để thêm topping (không bắt buộc); tổng tiền cộng thêm 10.000\,đ cho mỗi topping. \\
   \hline
-  Cột bên trái & Ảnh lớn của đồ uống và dòng chú thích bên dưới ảnh & Chỉ hiển thị. \\
+  (3) & Dưới các lựa chọn & Dòng ``Tổng tiền $\cdot$ 1 món'' & Khách hàng xem lại tổng số tiền hiển thị tự cập nhật. \\
   \hline
-  Cột bên phải, trên cùng & Nhãn nhóm món, tên món, mô tả ngắn và giá gốc & Cung cấp thông tin món. \\
+  (4) & Dưới tổng tiền & Nút lớn ``Thêm vào giỏ hàng'' và dòng tóm tắt & Bấm để thêm món. Nút sẽ đổi thành ``Đã thêm vào giỏ hàng $\checkmark$'' và số lượng trên Header tăng lên. Dòng tóm tắt cập nhật đúng lựa chọn. \\
   \hline
-  Mục ``Chọn size'' (bắt buộc, chọn 1) & Ba nút S (giá gốc), M ($+$5.000\,đ), L ($+$10.000\,đ) & Chọn đúng một size; nút được chọn hiện dấu tích và đổi màu nền. Tổng tiền cập nhật theo size. \\
+  (5) & Phía trên nội dung & Đường dẫn ``← Thực đơn / [Danh mục] / [Tên món]'' & Bấm vào đường dẫn để quay lại danh sách món ban đầu nếu muốn đổi ý. \\
   \hline
-  Mục ``Thêm topping'' (không bắt buộc) & Hai ô chọn ``Trân châu'' và ``Kem'', mỗi ô $+$10.000\,đ & Tick để thêm topping; tổng tiền cộng thêm 10.000\,đ cho mỗi topping. \\
-  \hline
-  Phía dưới các lựa chọn & Dòng ``Tổng tiền $\cdot$ 1 món'' và số tiền & Tự cập nhật theo size và topping đang chọn. \\
-  \hline
-  Dưới tổng tiền & Nút lớn ``Thêm vào giỏ hàng'' và dòng tóm tắt lựa chọn (ví dụ ``Size S $\cdot$ Không thêm topping'') & Bấm để thêm món vào giỏ; số lượng ở nút ``Giỏ hàng'' trên đầu trang tăng lên. \\
+  (6) & Thanh đầu trang & Nút ``Giỏ hàng'' & Bấm để tiến hành đi đến trang thanh toán. \\
   \hline
 \end{longtable}
 
@@ -216,43 +204,37 @@ Phần này mô tả bố cục năm màn hình cốt lõi, dựa trên giao di�
 \subsubsection{Màn hình 3: Giỏ hàng}
 \label{subsec:wf-giohang}
 %--------------------------------------------------------------
-
 \textbf{Mục đích:} cho khách xem lại các món đã chọn, chỉnh số lượng và chuyển sang thanh toán.
 
-\begin{figure}[htbp]
-  \centering
-  \chenHinh{width=0.95\textwidth}{Screenshot 2026-10-30 163236.png}
-  \caption{Màn hình Giỏ hàng}
-  \label{fig:wf-giohang}
-\end{figure}
+\begin{minipage}{\textwidth}
+\centering
+\chenHinh{width=0.95\textwidth}{Screenshot 2026-10-30 163236.png}
+\captionof{figure}{Màn hình Giỏ hàng}
+\label{fig:wf-giohang}
+\end{minipage}
+\vspace{10pt}
 
-\begin{longtable}{|p{3.2cm}|p{4.2cm}|p{6.1cm}|}
-  \caption{Các thành phần của màn hình Giỏ hàng}\label{tab:wf-giohang}\\
+\begin{longtable}{|p{1.0cm}|p{2.5cm}|p{4.5cm}|p{5.5cm}|}
+  \caption{Thứ tự thao tác trên màn hình Giỏ hàng}\label{tab:wf-giohang}\\
   \hline
-  \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
   \endfirsthead
   \hline
-  \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
   \endhead
-  Phía trên nội dung, bên trái & Liên kết ``Tiếp tục chọn món'' và tiêu đề ``Giỏ hàng của bạn'' & Bấm liên kết để quay lại thực đơn. \\
+  (1) & Cột bên trái, cạnh món ăn & Nút ``$-$'' và ``$+$'' & Bấm để tăng hoặc giảm số lượng ly của món ăn; thành tiền và tổng cộng tự cập nhật. \\
   \hline
-  Phía trên nội dung, bên phải & Nút chữ đỏ ``Xóa tất cả'' & Xóa toàn bộ món trong giỏ. \\
+  (2) & Cột bên trái, cạnh món ăn & Liên kết ``Xóa món'' & Bấm để bỏ món đó khỏi giỏ nếu không muốn mua nữa. \\
   \hline
-  Cột bên trái & Thẻ từng món: ảnh, tên, ``Size M $\cdot$ Không thêm topping'', ``Đơn giá'' & Cho biết chính xác lựa chọn size và topping của từng ly. \\
+  (3) & Cột bên phải, dưới nút Thanh toán & Nút ``$+$ Thêm sản phẩm khác'' & Khách bấm quay về thực đơn để chọn mua thêm món khác. \\
   \hline
-  Bên phải mỗi món & Nút ``$-$'' và ``$+$'' quanh số lượng, thành tiền, liên kết ``Xóa món'' & Tăng hoặc giảm số lượng; thành tiền và tổng cộng tự cập nhật. ``Xóa món'' bỏ món đó khỏi giỏ. \\
+  (4) & Cạnh tiêu đề ``Giỏ hàng của bạn'' & Nút chữ đỏ ``Xóa tất cả'' & Bấm để xóa toàn bộ các món trong giỏ hàng. Ẩn khi giỏ trống. \\
   \hline
-  Cột bên phải, phía trên & Khung ``Tóm tắt đơn hàng'': danh sách món rút gọn (tên, size, số lượng, thành tiền) & Giúp khách rà soát lại đơn. \\
+  (5) & Cột bên phải, giữa & Khung ``Tóm tắt đơn hàng'' và ``Tổng cộng'' & Xem lại toàn bộ thông tin rút gọn và số tiền cuối cùng. \\
   \hline
-  Cột bên phải, giữa & Dòng ``Tổng cộng (số món)'' và tổng tiền & Tự cập nhật theo số lượng. \\
-  \hline
-  Cột bên phải, phía dưới & Nút ``Thanh toán (tổng tiền)'' & Nếu chưa đăng nhập thì chuyển sang trang đăng nhập; nếu đã đăng nhập thì chuyển sang trang thanh toán. \\
-  \hline
-  Dưới nút Thanh toán & Nút ``$+$ Thêm sản phẩm khác'' và dòng ghi chú về thanh toán không tiền mặt & Nút quay về thực đơn để chọn thêm món. \\
-  \hline
-  Khi giỏ trống & Biểu tượng cốc, thông báo ``Giỏ hàng đang trống'' và nút ``Xem thực đơn ngay'' & Bấm nút để quay lại chọn món. \\
+  (6) & Cột bên phải, phía dưới & Nút ``Thanh toán'' & Bấm để thanh toán. Nếu chưa đăng nhập thì chuyển sang trang đăng nhập; nếu đã đăng nhập thì chuyển sang trang thanh toán. \\
   \hline
 \end{longtable}
 
@@ -260,41 +242,37 @@ Phần này mô tả bố cục năm màn hình cốt lõi, dựa trên giao di�
 \subsubsection{Màn hình 4: Thanh toán}
 \label{subsec:wf-thanhtoan}
 %--------------------------------------------------------------
-
 \textbf{Mục đích:} chọn phương thức không tiền mặt, áp mã khuyến mãi và xác nhận thanh toán.
 
-\begin{figure}[htbp]
-  \centering
-  \chenHinh{width=0.95\textwidth}{Screenshot 2026-10-30 163244.png}
-  \caption{Màn hình Thanh toán không tiền mặt}
-  \label{fig:wf-thanhtoan}
-\end{figure}
+\begin{minipage}{\textwidth}
+\centering
+\chenHinh{width=0.95\textwidth}{Screenshot 2026-10-30 163244.png}
+\captionof{figure}{Màn hình Thanh toán không tiền mặt}
+\label{fig:wf-thanhtoan}
+\end{minipage}
+\vspace{10pt}
 
-\begin{longtable}{|p{3.2cm}|p{4.2cm}|p{6.1cm}|}
-  \caption{Các thành phần của màn hình Thanh toán}\label{tab:wf-thanhtoan}\\
+\begin{longtable}{|p{1.0cm}|p{2.5cm}|p{4.5cm}|p{5.5cm}|}
+  \caption{Thứ tự thao tác trên màn hình Thanh toán}\label{tab:wf-thanhtoan}\\
   \hline
-  \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
   \endfirsthead
   \hline
-  \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
   \endhead
-  Thanh đầu trang & Logo, liên kết ``Quay lại giỏ hàng'', nút ``Lịch sử đơn'' và ``Đăng xuất'' & Bấm ``Quay lại giỏ hàng'' để chỉnh lại đơn trước khi trả tiền. \\
+  (1) & Thanh đầu trang & Liên kết ``Quay lại giỏ hàng'' & Bấm ``Quay lại giỏ hàng'' nếu muốn chỉnh lại đơn trước khi trả tiền. \\
   \hline
-  Phía trên nội dung & Tiêu đề ``Thanh toán không tiền mặt'' và dòng hướng dẫn & Cho khách biết cần chọn phương thức để hoàn tất đơn. \\
+  (2) & Cột bên trái, khung 1 & Hai nút radio: ``Ví điện tử (MoMo / VNPay)'' và ``Thẻ ngân hàng (ATM / Visa)'' & Chọn \textbf{đúng một} phương thức thanh toán. Lựa chọn được tô viền và nền xanh. \\
   \hline
-  Cột bên trái, khung 1 ``Chọn phương thức thanh toán'' & Hai lựa chọn dạng nút radio: ``Ví điện tử (MoMo / VNPay)'' và ``Thẻ ngân hàng (ATM / Visa / Master)'' & Chọn đúng một phương thức; lựa chọn đang chọn được tô viền và nền xanh. \\
+  (3) & Cột bên trái, khung 2 & Ô nhập ``Mã khuyến mãi \& Điểm thưởng'' & Khách nhập mã (\texttt{SGU2026}, \texttt{BREWLITE10}...); nếu hợp lệ thì ``Tổng thanh toán'' ở cột phải được cập nhật giảm trừ. \\
   \hline
-  Cột bên trái, khung 2 ``Mã khuyến mãi \& Điểm thưởng'' & Ô nhập mã và dòng gợi ý các mã hợp lệ: \texttt{SGU2026} (giảm 10k cho đơn từ 30k), \texttt{BREWLITE10} (giảm 10\% cho đơn từ 40k), \texttt{FREESHIP} (giảm 15k cho đơn từ 50k) & Khách nhập mã; nếu đơn đạt điều kiện, ``Tổng thanh toán'' được cập nhật. \\
+  (4) & Cột bên trái, khung vàng & Ô tick ``Chế độ Demo US-05'' & Khách (hoặc người test) tick vào ô để giả lập lỗi \texttt{PAYMENT\_FAILED}, giỏ hàng được giữ nguyên khi test. \\
   \hline
-  Cột bên trái, khung vàng phía dưới & Ô tick ``Chế độ Demo US-05: giả lập cổng thanh toán bị lỗi (\texttt{PAYMENT\_FAILED})'' & Khi tick, đơn chuyển sang \texttt{PAYMENT\_FAILED} và giỏ hàng được giữ nguyên; dùng để trình diễn tình huống lỗi cho giảng viên. \\
+  (5) & Cột bên phải, khung ``Đơn hàng'' & ``Tạm tính'' và ``Tổng thanh toán'' & Kiểm tra lại số tiền cuối cùng khách phải trả sau khi áp mã. \\
   \hline
-  Cột bên phải, khung ``Đơn hàng'' & Danh sách món (tên, size, số lượng, thành tiền), ``Tạm tính'' và ``Tổng thanh toán'' & Hiển thị số tiền cuối cùng khách phải trả sau khi áp mã. \\
-  \hline
-  Cột bên phải, phía dưới & Nút lớn ``Xác nhận trả'' & Bấm để gửi yêu cầu thanh toán. Nếu thành công thì chuyển sang màn hình xác nhận; nếu thất bại thì hiển thị thông báo lỗi và cho phép thử lại. \\
-  \hline
-  Dưới nút ``Xác nhận trả'' & Dòng \texttt{Idempotency-Key} do hệ thống sinh ra & Mã định danh của lần thanh toán, giúp Backend nhận biết yêu cầu gửi trùng và không xử lý hai lần. \\
+  (6) & Cột bên phải, phía dưới & Nút lớn ``Xác nhận trả'' & Bấm để gửi yêu cầu thanh toán. Nếu thành công thì chuyển sang màn hình xác nhận; nếu thất bại thì hiển thị lỗi và cho phép thử lại. \\
   \hline
 \end{longtable}
 
@@ -302,35 +280,35 @@ Phần này mô tả bố cục năm màn hình cốt lõi, dựa trên giao di�
 \subsubsection{Màn hình 5: Xác nhận đơn hàng}
 \label{subsec:wf-xacnhan}
 %--------------------------------------------------------------
-
 \textbf{Mục đích:} báo cho khách biết đơn đã được ghi nhận, cho xem điểm thưởng và theo dõi lịch sử đơn.
 
-\begin{figure}[htbp]
-  \centering
-  \chenHinh{width=0.95\textwidth}{Screenshot 2026-10-30 163251.png}
-  \caption{Màn hình Xác nhận đơn hàng và Lịch sử đơn}
-  \label{fig:wf-xacnhan}
-\end{figure}
+\begin{minipage}{\textwidth}
+\centering
+\chenHinh{width=0.95\textwidth}{Screenshot 2026-10-30 163251.png}
+\captionof{figure}{Màn hình Xác nhận đơn hàng và Lịch sử đơn}
+\label{fig:wf-xacnhan}
+\end{minipage}
+\vspace{10pt}
 
-\begin{longtable}{|p{3.2cm}|p{4.2cm}|p{6.1cm}|}
-  \caption{Các thành phần của màn hình Xác nhận đơn hàng}\label{tab:wf-xacnhan}\\
+\begin{longtable}{|p{1.0cm}|p{2.5cm}|p{4.5cm}|p{5.5cm}|}
+  \caption{Thứ tự thao tác trên màn hình Xác nhận đơn hàng}\label{tab:wf-xacnhan}\\
   \hline
-  \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
   \endfirsthead
   \hline
-  \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
   \endhead
-  Thanh đầu trang & Logo, liên kết ``Quay lại thực đơn'' và nút ``Đăng xuất'' & Bấm ``Quay lại thực đơn'' để tiếp tục chọn món. \\
+  (1) & Khung xanh phía trên & Biểu tượng dấu tích, tiêu đề ``Đặt hàng thành công'' & Đọc thông báo xác nhận thanh toán hoàn tất. \\
   \hline
-  Khung xanh phía trên, giữa & Biểu tượng dấu tích, tiêu đề ``Đặt hàng thành công'' và dòng hướng dẫn nhận đồ uống khi trạng thái chuyển sang \texttt{READY} & Xác nhận thanh toán đã hoàn tất và nhắc khách chờ đơn sẵn sàng. \\
+  (2) & Thẻ thông tin đơn & ``Mã đơn'' (\#13), ``Trạng thái'' (\texttt{PAID}), ``Điểm thưởng tích lũy'' & Khách ghi nhớ mã đơn để nhận đồ uống; kiểm tra điểm thưởng được cộng. \\
   \hline
-  Thẻ thông tin đơn & Các dòng: ``Mã đơn'' (ví dụ \#13), ``Trạng thái'' (\texttt{PAID}), ``Đã thanh toán'', ``Điểm thưởng tích lũy (Loyalty)'' (ví dụ $+$4 điểm) & Khách ghi nhớ mã đơn để nhận đồ uống; điểm thưởng được cộng sau khi đơn chuyển sang \texttt{PAID}. \\
+  (3) & Phần dưới trang & ``Lịch sử đơn hàng của tôi'' & Cuộn xem danh sách mã đơn, trạng thái, thời gian đặt. Nhãn trạng thái đổi màu khi nhân viên cập nhật. \\
   \hline
-  Dưới thẻ thông tin & Nút ``Về trang chủ'' & Bấm để quay về thực đơn. \\
+  (4) & Dưới thẻ thông tin & Nút ``Về trang chủ'' & Bấm để quay về thực đơn. \\
   \hline
-  Phần dưới trang, ``Lịch sử đơn hàng của tôi'' & Danh sách các thẻ đơn: mã đơn, nhãn trạng thái, thời gian đặt và tổng tiền & Giúp khách theo dõi trạng thái các đơn của mình; nhãn trạng thái thay đổi khi nhân viên cập nhật đơn. \\
+  (5) & Thanh đầu trang & Liên kết ``Quay lại thực đơn'' và nút ``Đăng xuất'' & Bấm liên kết để tiếp tục chọn món, hoặc bấm ``Đăng xuất'' để kết thúc phiên làm việc. \\
   \hline
 \end{longtable}
 

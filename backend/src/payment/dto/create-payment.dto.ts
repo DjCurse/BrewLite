@@ -6,16 +6,15 @@ export class CreatePaymentDto {
   orderId: number;
 
   @IsString()
-  @IsIn(['WALLET', 'CARD'], {
-    message: 'Phương thức thanh toán chỉ chấp nhận WALLET (Ví điện tử) hoặc CARD (Thẻ ngân hàng)',
+  @IsIn(['WALLET', 'CARD', 'QR_CODE'], {
+    message: 'Phương thức thanh toán chỉ chấp nhận WALLET, CARD hoặc QR_CODE',
   })
-  method: 'WALLET' | 'CARD';
+  method: 'WALLET' | 'CARD' | 'QR_CODE';
 
   @IsOptional()
   @IsString()
   promoCode?: string;
 
-  // Cờ hỗ trợ khi Demo cho giảng viên: truyền true để giả lập cổng thanh toán báo lỗi -> chuyển đơn sang PAYMENT_FAILED
   @IsOptional()
   @IsBoolean()
   simulateFailure?: boolean;

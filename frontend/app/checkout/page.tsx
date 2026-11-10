@@ -17,7 +17,8 @@ export default function CheckoutPage() {
 
   const [mounted, setMounted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [method, setMethod] = useState<"WALLET" | "CARD" | "QR_CODE">("WALLET");
+  // Gộp WALLET và QR_CODE thành phương thức mặc định duy nhất là QR_WALLET
+  const [method, setMethod] = useState<"QR_WALLET" | "CARD">("QR_WALLET");
   const [promoCode, setPromoCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -25,7 +26,7 @@ export default function CheckoutPage() {
   const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState("");
   
-  // Trạng thái cho luồng QR Code
+  // Trạng thái cho luồng QR Code / Ví điện tử
   const [qrGenerated, setQrGenerated] = useState(false);
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
@@ -57,7 +58,7 @@ export default function CheckoutPage() {
   }
   const finalEstimatedTotal = Math.max(0, subtotal - estimatedDiscount);
 
-  // --- LOGIC 1: HÀM TẠO MÃ QR ---
+  // --- LOGIC 1: HÀM TẠO MÃ QR CHO VÍ ĐIỆN TỬ ---
   async function handleGenerateQR() {
     setIsGeneratingQr(true);
     setErrorMsg("");
@@ -101,8 +102,8 @@ export default function CheckoutPage() {
   // --- LOGIC 2: ĐỒNG BỘ CROSS-DEVICE (SHORT POLLING) ---
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    // Chỉ bật quét khi đang ở tab QR Code và mã QR đã được tạo
-    if (method === "QR_CODE" && qrGenerated && pendingOrderId) {
+    // Bật quét khi người dùng chọn QR_WALLET và mã QR đã được tạo
+    if (method === "QR_WALLET" && qrGenerated && pendingOrderId) {
       const token = localStorage.getItem("access_token");
       
       interval = setInterval(async () => {
@@ -136,7 +137,7 @@ export default function CheckoutPage() {
     };
   }, [method, qrGenerated, pendingOrderId, router]);
 
-  // --- LOGIC 3: HÀM THANH TOÁN BÌNH THƯỜNG (Cho Nút Xác Nhận) ---
+  // --- LOGIC 3: HÀM THANH TOÁN BÌNH THƯỜNG (Cho thẻ ngân hàng) ---
   async function handleConfirmPayment() {
     if (items.length === 0) return;
     setErrorMsg("");
@@ -239,18 +240,14 @@ export default function CheckoutPage() {
               <div className="rounded-3xl border border-[#e9e4db] bg-white p-6">
                 <h2 className="text-lg font-bold">1. Chọn phương thức thanh toán</h2>
                 <div className="mt-4 space-y-3">
-                  <label className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 transition ${method === "WALLET" ? "border-[#365d49] bg-[#e5eddf]/60" : "border-[#e9e4db] bg-white"}`}>
-                    <input type="radio" checked={method === "WALLET"} onChange={() => setMethod("WALLET")} className="h-4 w-4 accent-[#365d49]" />
-                    <div><p className="font-semibold">Ví điện tử (MoMo / VNPay)</p><p className="text-xs text-[#8d877f]">Thanh toán tức thì</p></div>
+                  <label className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 transition ${method === "QR_WALLET" ? "border-[#365d49] bg-[#e5eddf]/60" : "border-[#e9e4db] bg-white"}`}>
+                    <input type="radio" checked={method === "QR_WALLET"} onChange={() => { setMethod("QR_WALLET"); setQrGenerated(false); }} className="h-4 w-4 accent-[#365d49]" />
+                    <div><p className="font-semibold">Ví điện tử (MoMo)</p><p className="text-xs text-[#8d877f]">Quét QR đồng bộ thanh toán qua camera điện thoại</p></div>
                   </label>
                   <label className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 transition ${method === "CARD" ? "border-[#365d49] bg-[#e5eddf]/60" : "border-[#e9e4db] bg-white"}`}>
-                    <input type="radio" checked={method === "CARD"} onChange={() => setMethod("CARD")} className="h-4 w-4 accent-[#365d49]" />
+                    <input type="radio" checked={method === "CARD"} onChange={() => { setMethod("CARD"); setQrGenerated(false); }} className="h-4 w-4 accent-[#365d49]" />
                     <div><p className="font-semibold">Thẻ ngân hàng (ATM / Visa)</p><p className="text-xs text-[#8d877f]">Cổng thẻ bảo mật</p></div>
                   </label> 
-                  <label className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 p-4 transition ${method === "QR_CODE" ? "border-[#365d49] bg-[#e5eddf]/60" : "border-[#e9e4db] bg-white"}`}>
-                    <input type="radio" checked={method === "QR_CODE"} onChange={() => { setMethod("QR_CODE"); setQrGenerated(false); }} className="h-4 w-4 accent-[#365d49]" />
-                    <div><p className="font-semibold">Quét mã QR (Đồng bộ đa thiết bị)</p><p className="text-xs text-[#8d877f]">Hỗ trợ quét qua camera điện thoại</p></div>
-                  </label>
                 </div>
               </div>
 
@@ -288,24 +285,24 @@ export default function CheckoutPage() {
 
               {errorMsg && <div role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs text-red-800">{errorMsg}</div>} 
               
-              {/* VÙNG XỬ LÝ NÚT THANH TOÁN HOẶC QR CODE */}
-              {method === "QR_CODE" ? (
+              {/* VÙNG XỬ LÝ NÚT THANH TOÁN (CARD) HOẶC QR CODE (QR_WALLET) */}
+              {method === "QR_WALLET" ? (
                 <div className="mt-6 flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#365d49] bg-[#f0f5ed] p-5 text-center">
                   {!qrGenerated ? (
                     <>
-                      <p className="mb-4 text-sm text-[#365d49]">Vui lòng chốt mã giảm giá trước khi tạo QR.</p>
+                      <p className="mb-4 text-sm text-[#365d49]">Vui lòng chốt mã giảm giá trước khi tạo QR thanh toán.</p>
                       <button onClick={handleGenerateQR} disabled={isGeneratingQr} className="rounded-xl bg-[#365d49] px-6 py-2.5 font-semibold text-white transition hover:bg-[#294a39] disabled:opacity-60">
                         {isGeneratingQr ? "Đang khởi tạo..." : "Tạo mã QR để quét"}
                       </button>
                     </>
                   ) : (
                     <>
-                      <p className="mb-3 text-sm font-bold text-[#365d49]">Đang chờ thanh toán...</p>
+                      <p className="mb-3 text-sm font-bold text-[#365d49]">Đang chờ thanh toán qua Ví điện tử...</p>
                       <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrUrl)}`} alt="QR" className="h-[150px] w-[150px] rounded-lg mix-blend-multiply" />
                       
                       {typeof window !== "undefined" && window.location.hostname === "localhost" && (
                         <a href={qrUrl} target="_blank" rel="noopener noreferrer" className="mt-3 text-[13px] font-medium text-blue-600 underline hover:text-blue-800">
-                          [Dev] Giả lập click để thanh toán
+                          [Dev] Giả lập click mở luồng Mobile
                         </a>
                       )}
                       
@@ -318,7 +315,7 @@ export default function CheckoutPage() {
                 </div>
               ) : (
                 <button type="button" disabled={isSubmitting} onClick={handleConfirmPayment} className="mt-6 min-h-14 w-full rounded-2xl bg-[#365d49] px-4 font-semibold text-white transition hover:bg-[#294a39] disabled:opacity-60">
-                  {isSubmitting ? "Đang xử lý giao dịch..." : "Xác nhận trả"}
+                  {isSubmitting ? "Đang xử lý giao dịch..." : "Xác nhận trả thẻ"}
                 </button>
               )}
 

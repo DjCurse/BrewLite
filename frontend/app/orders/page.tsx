@@ -125,14 +125,15 @@ function OrdersContent() {
           </p>
         ) : (
           <div className="mt-4 space-y-4">
-            {orders.map((order) => (
+            {orders.map((order, index) => (
               <div
                 key={order.id}
                 className="flex flex-col justify-between gap-4 rounded-2xl border border-[#e9e4db] bg-white p-5 sm:flex-row sm:items-center"
               >
                 <div>
                   <div className="flex items-center gap-3">
-                    <span className="text-lg font-bold">Đơn #{order.id}</span>
+                    {/* Hiển thị số thứ tự đơn hàng theo index của mảng (ví dụ mảng sắp xếp mới nhất lên đầu) */}
+                    <span className="text-lg font-bold">Đơn #{orders.length - index}</span>
                     <span className="rounded-full bg-[#e5eddf] px-3 py-0.5 text-xs font-bold text-[#365d49]">
                       {order.status}
                     </span>

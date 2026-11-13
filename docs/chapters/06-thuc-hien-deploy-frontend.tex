@@ -1,0 +1,139 @@
+% =========================================================================
+% File: 06-thuc-hien-deploy-frontend.tex
+% Mô tả: Chương báo cáo triển khai hệ thống và Frontend Next.js lên Vercel
+%        kèm hướng dẫn cấu hình NEXT_PUBLIC_API_URL cho dự án BrewLite - Nhóm 12
+% Hướng dẫn: Chèn vào file main.tex bằng lệnh \input{06-thuc-hien-deploy-frontend}
+% =========================================================================
+
+\section{Triển khai Frontend Next.js lên Vercel và Hệ thống Cloud}
+
+Ở các chương trước, hệ thống \textbf{BrewLite} được đóng gói và vận hành trên máy cục bộ thông qua tệp \texttt{docker-compose.yml} (khởi chạy đồng thời Frontend ở cổng \texttt{3000}, Backend ở cổng \texttt{3001} và PostgreSQL 16 ở cổng \texttt{5432}). Tuy nhiên, để phục vụ buổi nghiệm thu thực tế cũng như giúp khách hàng có thể truy cập ứng dụng trực tiếp từ trình duyệt điện thoại hoặc máy tính cá nhân mà không cần cài đặt môi trường, nhóm đã tiến hành nghiên cứu, cấu hình và triển khai toàn bộ hệ thống lên môi trường đám mây (Cloud Server), trọng tâm là đưa ứng dụng \textbf{Frontend Next.js lên nền tảng Vercel} và cấu hình biến môi trường \texttt{NEXT\_PUBLIC\_API\_URL} liên kết với hệ thống Backend/Database.
+
+Việc đưa ứng dụng lên Cloud được thực hiện bằng cách tách biệt ba tầng kiến trúc của dự án lên ba nền tảng chuyên biệt: cơ sở dữ liệu PostgreSQL đặt trên \textbf{Supabase}, dịch vụ Backend Nest.JS chạy trên \textbf{Render} và giao diện Frontend Next.js được triển khai trên \textbf{Vercel}.
+
+\subsection{Tổng quan hạ tầng Cloud và luồng kết nối thực tế}
+
+Thay vì gom tất cả dịch vụ vào một máy chủ duy nhất, nhóm lựa chọn mô hình phân tách từng tầng lên các nền tảng đám mây tương ứng với thế mạnh của từng công nghệ. Bảng \ref{tab:cloud-overview} tổng hợp thông tin định danh và vai trò thực tế của ba nền tảng mà nhóm đã cấu hình.
+
+\begin{table}[H]
+\centering
+\caption{Phân bổ các tầng của hệ thống BrewLite trên môi trường Cloud}
+\vspace{0.2cm}
+\begin{tabular}{|p{2.5cm}|p{2.6cm}|p{4.3cm}|p{5.5cm}|}
+\hline
+\textbf{Tầng hệ thống} & \textbf{Nền tảng sử dụng} & \textbf{Thông tin dự án / Dịch vụ} & \textbf{Vai trò trong hệ thống} \\ \hline
+\textbf{Cơ sở dữ liệu (Database)} & \textbf{Supabase} \newline (PostgreSQL) & Project ID: \newline \texttt{pcpalhrohnzasnyfhklf} \newline Cụm máy chủ: \newline AWS \texttt{ap-northeast-2} & Lưu trữ 5 bảng dữ liệu cốt lõi (\texttt{Product}, \texttt{User}, \texttt{Order}, \texttt{OrderItem}, \texttt{Payment}) và kiểu trạng thái \texttt{OrderStatus}. Cung cấp chuỗi kết nối qua PgBouncer (\texttt{DATABASE\_URL}) và kết nối trực tiếp (\texttt{DIRECT\_URL}). \\ \hline
+\textbf{Backend (REST API)} & \textbf{Render} \newline (Web Service) & Service ID: \newline \texttt{srv-dbo74m1srm7s73b580h0} \newline Bản dựng (Deploy ID): \newline \texttt{dep-dbo7g75g1s2s73ednjtg} & Chạy ứng dụng Nest.JS, xử lý đăng nhập JWT, kiểm soát máy trạng thái đơn hàng (\texttt{Order State Machine}), chống thanh toán lặp (\texttt{Idempotency-Key}), khóa lạc quan (\texttt{Optimistic Locking}) và tính điểm \texttt{Loyalty}. \\ \hline
+\textbf{Frontend (Giao diện)} & \textbf{Vercel} & Team: \texttt{djteam3} \newline Project: \texttt{brew-lite} & Biên dịch và phân phối giao diện Next.js (5 màn hình chức năng và 2 màn hình xác thực), cấu hình \texttt{NEXT\_PUBLIC\_API\_URL} trỏ về Render và tự động cập nhật khi đẩy code lên nhánh \texttt{main}. \\ \hline
+\end{tabular}
+\label{tab:cloud-overview}
+\end{table}
+
+Trong mô hình vận hành này, luồng dữ liệu giữa các tầng không còn đi qua \texttt{localhost} mà giao tiếp hoàn toàn qua môi trường Internet:
+\begin{enumerate}
+    \item Cơ sở dữ liệu trên \textbf{Supabase} đóng vai trò là tầng lưu trữ gốc. Sau khi khởi tạo xong các bảng, Supabase cung cấp đường dẫn kết nối URI để nhóm cấu hình vào phần cài đặt của \textbf{Render}.
+    \item Dịch vụ Backend trên \textbf{Render} sử dụng \texttt{PrismaService} để đọc và ghi dữ liệu vào Supabase. Khi quá trình build trên Render hoàn tất, hệ thống cấp phát một đường dẫn API công khai (\texttt{https://...onrender.com}).
+    \item Trên \textbf{Vercel}, nhóm khai báo đường dẫn API của Render vào biến môi trường \texttt{NEXT\_PUBLIC\_API\_URL} tại mục \textit{Environment Variables} của dự án \texttt{brew-lite}. Nhờ vậy, khi người dùng mở trang web trên Vercel, các lệnh \texttt{fetch()} từ trình duyệt sẽ gửi đúng yêu cầu (\texttt{GET /products}, \texttt{POST /orders}, \texttt{POST /payments}) kèm \texttt{Bearer Token} và \texttt{Idempotency-Key} về máy chủ Render.
+\end{enumerate}
+
+\subsection{Chuẩn bị hạ tầng dữ liệu trên Supabase và Backend trên Render}
+
+Để giao diện Frontend trên Vercel có sẵn nguồn API hoạt động khi cấu hình biến \texttt{NEXT\_PUBLIC\_API\_URL}, nhóm thực hiện chuyển đổi cơ sở dữ liệu và đưa Backend lên hoạt động trước.
+
+\subsubsection{Thiết lập chuỗi kết nối Supabase trong tệp môi trường Backend}
+Nhóm khởi tạo dự án cơ sở dữ liệu trên Supabase (mã dự án \texttt{pcpalhrohnzasnyfhklf}, đặt tại phân vùng \texttt{ap-northeast-2} để đảm bảo tốc độ phản hồi ổn định khi truy cập từ Việt Nam). Trong quá trình cấu hình tệp \texttt{.env} tại thư mục \texttt{backend} (trong thư mục dự án \texttt{D:\textbackslash CNPM\textbackslash BrewLite}), nhóm thiết lập đồng thời hai đường dẫn kết nối để tương thích với cơ chế quản lý kết nối của Prisma ORM trên đám mây:
+
+\begin{itemize}
+    \item \textbf{Biến \texttt{DATABASE\_URL} (kết nối qua Connection Pooler -- PgBouncer):}
+    \begin{verbatim}
+DATABASE_URL="postgresql://postgres.pcpalhrohnzasnyfhklf:Khanggaming%4079@
+aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres?pgbouncer=true&connection_limit=1"
+    \end{verbatim}
+    Đường dẫn này được ứng dụng Nest.JS sử dụng xuyên suốt trong lúc chạy thực tế để thực hiện các truy vấn đọc thực đơn, tạo đơn hàng và chạy giao dịch thanh toán. Do mật khẩu quản trị cơ sở dữ liệu có chứa ký tự đặc biệt \texttt{@} (\texttt{Khanggaming@79}), nhóm đã chuyển ký tự này sang dạng mã hóa URL là \texttt{\%40} để tránh việc Prisma hiểu nhầm điểm bắt đầu của tên miền máy chủ. Đồng thời, hai tham số \texttt{pgbouncer=true} và \texttt{connection\_limit=1} được thêm vào cuối chuỗi nhằm giúp Prisma hoạt động ổn định qua lớp điều phối kết nối PgBouncer của Supabase mà không bị lỗi xung đột \textit{prepared statements}.
+
+    \item \textbf{Biến \texttt{DIRECT\_URL} (kết nối trực tiếp):}
+    \begin{verbatim}
+DIRECT_URL="postgresql://postgres:Khanggaming%4079@
+db.pcpalhrohnzasnyfhklf.supabase.co:5432/postgres"
+    \end{verbatim}
+    Đường dẫn này kết nối thẳng tới máy chủ PostgreSQL của dự án mà không đi qua bộ điều phối trung gian, được dùng riêng khi nhóm chạy lệnh đồng bộ lược đồ (\texttt{npx prisma db push} hoặc \texttt{npx prisma migrate deploy}) từ máy cục bộ lên đám mây.
+\end{itemize}
+
+Sau khi kiểm tra việc đồng bộ 5 thực thể (\texttt{Product}, \texttt{User}, \texttt{Order}, \texttt{OrderItem}, \texttt{Payment}) lên Supabase thành công, nhóm tiến hành lưu cấu hình và đẩy các thay đổi lên nhánh \texttt{main} của kho lưu trữ GitHub với nội dung commit là \textbf{\texttt{"cập nhật đường dẫn lên cloud"}}. Theo đúng nguyên tắc bảo mật đã thống nhất ở Mục 7.2.3, tệp \texttt{.env} được giữ lại ở máy cục bộ thông qua cấu hình \texttt{.gitignore}, còn các giá trị kết nối thực tế được nhóm nhập trực tiếp vào bảng điều khiển của nền tảng Cloud.
+
+\subsubsection{Vận hành dịch vụ Backend trên Render}
+Tiếp theo, nhóm tạo một dịch vụ Web Service trên \textbf{Render} (mã dịch vụ \texttt{srv-dbo74m1srm7s73b580h0}) và kết nối với nhánh \texttt{main} trên kho lưu trữ GitHub của nhóm. Trong phần cài đặt môi trường của Render, nhóm khai báo đầy đủ các biến \texttt{DATABASE\_URL}, \texttt{DIRECT\_URL} và \texttt{JWT\_SECRET}.
+
+Khi nhóm đẩy bản commit \textit{"cập nhật đường dẫn lên cloud"} lên GitHub, Render tự động nhận diện thay đổi và tiến hành chạy bản triển khai \texttt{dep-dbo7g75g1s2s73ednjtg} (quá trình build và khởi chạy diễn ra từ \texttt{13:23:44} đến \texttt{13:26:38} ngày \texttt{08/11/2026}). Qua theo dõi nhật ký hệ thống (Deploy Logs) trên Render, dịch vụ đã cài đặt đầy đủ các gói thư viện, khởi tạo Prisma Client, biên dịch thành công mã nguồn Nest.JS và cung cấp URL dịch vụ REST API sẵn sàng nhận yêu cầu từ phía giao diện Vercel.
+
+\subsection{Hướng dẫn chi tiết quy trình Deploy Frontend Next.js lên Vercel và cấu hình biến môi trường}
+
+Sau khi tầng cơ sở dữ liệu trên Supabase và tầng Backend trên Render đã hoạt động ổn định, nhóm tiến hành triển khai phần giao diện người dùng (Frontend Next.js) lên nền tảng \textbf{Vercel}. Đây là nền tảng do chính đội ngũ phát triển Next.js xây dựng nên hỗ trợ tối ưu cho cả các trang kết xuất phía máy chủ (SSR) lẫn các trang tương tác phía trình duyệt (CSR). Quy trình triển khai và cấu hình được thực hiện tuần tự qua 4 bước:
+
+\subsubsection{Bước 1: Kiểm tra mã nguồn cục bộ và khởi tạo Project trên Vercel}
+Trước khi đưa lên Cloud, nhóm chạy thử lệnh \texttt{npm run build} ngay trong thư mục \texttt{frontend} ở máy cá nhân để rà soát lỗi cú pháp TypeScript và đảm bảo toàn bộ 5 màn hình chính cùng 2 màn hình đăng nhập/đăng ký đều đóng gói thành công. Thực tế cho thấy nếu mã nguồn đã build thành công ở dưới máy cục bộ thì quá trình biên dịch trên máy chủ Vercel cũng sẽ diễn ra suôn sẻ mà không gặp lỗi phát sinh.
+
+Sau khi mã nguồn trên nhánh \texttt{main} của GitHub đã sẵn sàng, nhóm truy cập trang chủ \texttt{https://vercel.com} và đăng nhập bằng tài khoản Gmail. Khi đăng nhập thành công, Vercel tự động khởi tạo một không gian làm việc nhóm (Team) có tên là \textbf{\texttt{djteam3}}. Tại giao diện quản lý của Team \texttt{djteam3}, nhóm nhấn vào nút \textbf{Add New...} và chọn \textbf{Project} để bắt đầu tạo dự án mới.
+
+\subsubsection{Bước 2: Liên kết tài khoản GitHub và Import kho lưu trữ}
+Tại màn hình khởi tạo dự án, nhóm thực hiện tích hợp Vercel với tài khoản GitHub thông qua mục \textbf{Import Git Repository}:
+\begin{itemize}
+    \item Sau khi xác thực thông tin đăng nhập GitHub, hệ thống yêu cầu cấp quyền truy cập vào kho mã nguồn. Người dùng có thể lựa chọn cho phép Vercel truy cập vào toàn bộ kho lưu trữ (\textit{All repositories}) hoặc chỉ những kho lưu trữ được chọn (\textit{Only select repositories}).
+    \item Khi đã cấp quyền hoàn tất, danh sách các dự án từ GitHub sẽ hiển thị trên giao diện của Vercel. Nhóm gõ tìm kiếm tên kho lưu trữ của đồ án là \textbf{\texttt{brew-lite}}, sau đó nhấn nút \textbf{Import} để đưa mã nguồn vào bước cấu hình triển khai.
+\end{itemize}
+
+\subsubsection{Bước 3: Cấu hình Framework và Biến môi trường \texttt{NEXT\_PUBLIC\_API\_URL}}
+Ở màn hình cấu hình chi tiết của dự án (\textit{Configure Project}) và trang quản lý biến môi trường của Vercel, nhóm thực hiện thiết lập các thông số kỹ thuật cốt lõi:
+
+\begin{enumerate}
+    \item \textbf{Chọn Framework (\textit{Framework Preset}):} Vercel hỗ trợ sẵn hầu hết các framework phổ biến hiện nay như Next.js, React, Vue, Angular (chỉ không hỗ trợ trực tiếp các nền tảng đặc thù như .NET). Đối với mã nguồn của nhóm, hệ thống tự động nhận diện và chọn đúng framework là \textbf{Next.js}.
+    \item \textbf{Thư mục gốc và lệnh Build (\textit{Build and Output Settings}):} Nhóm trỏ thư mục gốc (\textit{Root Directory}) về thư mục \texttt{frontend} trong dự án và giữ nguyên các lệnh biên dịch mặc định của Next.js (\texttt{next build}) để hệ thống tự động chạy khi cài đặt.
+    \item \textbf{Cấu hình chi tiết biến môi trường \texttt{NEXT\_PUBLIC\_API\_URL}:}
+    Trong quá trình phát triển dưới máy cá nhân, Frontend gọi API thông qua địa chỉ cục bộ \texttt{http://localhost:3001}. Khi đưa lên Vercel, nếu giữ nguyên địa chỉ này thì trình duyệt của khách hàng sẽ không thể kết nối tới máy chủ Backend. Do đó, nhóm truy cập vào trang quản trị biến môi trường của dự án tại đường dẫn:
+    \begin{center}
+    \texttt{https://vercel.com/djteam3/brew-lite/settings/environment-variables}
+    \end{center}
+    Tại đây, nhóm tiến hành thêm mới biến môi trường \textbf{\texttt{NEXT\_PUBLIC\_API\_URL}} với quy tắc cấu hình như sau:
+    \begin{itemize}
+        \item \textbf{Tên biến (Key):} \texttt{NEXT\_PUBLIC\_API\_URL}. Trong cơ chế của Next.js, các biến môi trường thông thường chỉ có thể đọc được ở phía máy chủ (Node.js server). Việc đặt tiền tố \textbf{\texttt{NEXT\_PUBLIC\_}} ở đầu tên biến là bắt buộc để trình biên dịch của Next.js nhúng giá trị đường dẫn này vào gói mã nguồn phía trình duyệt (Client-side bundle), giúp các màn hình chạy CSR (như chọn size/topping, giỏ hàng Zustand, thanh toán và đăng nhập) có thể gọi hàm \texttt{fetch(\`\$\{process.env.NEXT\_PUBLIC\_API\_URL\}/...\`)} trực tiếp tới Backend trên Render.
+        \item \textbf{Giá trị (Value):} Điền đường dẫn HTTPS công khai của dịch vụ Backend Nest.JS đã được triển khai trên Render (thuộc dịch vụ \texttt{srv-dbo74m1srm7s73b580h0}, không có dấu gạch chéo \texttt{/} ở cuối đường dẫn).
+        \item \textbf{Môi trường áp dụng (Environments):} Tích chọn cả 3 môi trường mặc định của Vercel gồm \textbf{Production} (bản chạy chính thức trên tên miền chính), \textbf{Preview} (bản chạy thử nghiệm cho các nhánh phụ) và \textbf{Development}, sau đó nhấn \textbf{Save}. Việc quản lý biến môi trường tập trung trên Vercel giúp nhóm tránh được việc phải viết cứng (\textit{hardcode}) đường dẫn máy chủ vào trong các tệp cài đặt của mã nguồn.
+    \end{itemize}
+\end{enumerate}
+
+Bảng \ref{tab:env-summary} tổng hợp toàn bộ các biến môi trường được nhóm cấu hình trên Vercel và Render để vận hành hệ thống.
+
+\begin{table}[H]
+\centering
+\caption{Bảng tổng hợp cấu hình biến môi trường trên Vercel và Render}
+\vspace{0.2cm}
+\begin{tabular}{|p{4.4cm}|p{2.8cm}|p{7.7cm}|}
+\hline
+\textbf{Tên biến môi trường} & \textbf{Nơi cấu hình} & \textbf{Ý nghĩa và mục đích sử dụng} \\ \hline
+\texttt{NEXT\_PUBLIC\_API\_URL} & Vercel \newline (\texttt{brew-lite}) & Lưu đường dẫn dịch vụ Backend đang chạy trên Render (\texttt{srv-dbo74m1srm7s73b580h0}). Tiền tố \texttt{NEXT\_PUBLIC\_} cho phép trình duyệt truy cập đường dẫn này khi gọi API từ cả các trang SSR và CSR. \\ \hline
+\texttt{DATABASE\_URL} & Render \& \texttt{.env} Backend & Chuỗi kết nối PostgreSQL qua bộ điều phối PgBouncer của Supabase (\texttt{...pooler.supabase.com:5432/postgres?pgbouncer=true\&connection\_limit=1}). \\ \hline
+\texttt{DIRECT\_URL} & Render \& \texttt{.env} Backend & Chuỗi kết nối trực tiếp tới cơ sở dữ liệu Supabase (\texttt{db.pcpalhrohnzasnyfhklf.supabase.co:5432/postgres}) dùng khi đồng bộ bảng dữ liệu với Prisma. \\ \hline
+\texttt{JWT\_SECRET} & Render \& \texttt{.env} Backend & Khóa bí mật dùng để tạo và kiểm tra tính hợp lệ của chuỗi \texttt{access\_token} khi khách hàng đăng nhập và đặt đơn. \\ \hline
+\end{tabular}
+\label{tab:env-summary}
+\end{table}
+
+Sau khi lưu biến môi trường \texttt{NEXT\_PUBLIC\_API\_URL} và chọn nhánh triển khai chính (\texttt{main}), nhóm nhấn nút \textbf{Deploy}. Hệ thống Vercel bắt đầu khởi chạy tiến trình đóng gói chỉ sau khoảng 1 giây. Ở phần nhật ký bên dưới màn hình, Vercel lần lượt thực hiện việc tải các gói thư viện phụ thuộc (\textit{dependencies}), nhúng biến \texttt{NEXT\_PUBLIC\_API\_URL} vào mã nguồn, biên dịch các trang giao diện của BrewLite, đóng gói đầu ra (\textit{Deploy Output}) và gán tên miền cho trang web. Khi quá trình hoàn tất, màn hình hiện thông báo chúc mừng (\textbf{Congratulations!}), nhóm nhấn vào nút \textbf{Continue to Dashboard} để chuyển sang giao diện quản trị chính của dự án.
+
+\subsubsection{Bước 4: Cơ chế tự động cập nhật (CI/CD), quản lý tên miền và khôi phục phiên bản}
+Sau khi dự án \texttt{brew-lite} được đưa lên Vercel, công việc bảo trì và cập nhật giao diện của cả nhóm trong quá trình làm đồ án trở nên thuận tiện hơn nhờ các tính năng quản lý tự động của nền tảng:
+\begin{itemize}
+    \item \textbf{Tự động triển khai khi có code mới (Auto-deploy Pipeline):} Mỗi khi một thành viên trong nhóm sửa lỗi giao diện hoặc cập nhật cấu hình ở máy cá nhân rồi thực hiện \texttt{commit} và đẩy (\texttt{push}) lên nhánh \texttt{main} trên GitHub, Vercel sẽ tự động phát hiện và kích hoạt (trigger) đường ống pipeline. Hệ thống tự động kéo bản code mới nhất từ GitHub về, tải lại các gói thư viện cần thiết và tiến hành build bản mới lên trang web mà nhóm không cần phải vào bấm deploy lại bằng tay.
+    \item \textbf{Lịch sử triển khai và khôi phục nhanh (\textit{Deployment History \& Rollback}):} Trong khi bản code mới được cập nhật lên hệ thống, toàn bộ các bản code cũ trước đó vẫn được Vercel lưu lại đầy đủ trong mục lịch sử triển khai (\textit{Deployments}) kèm theo nhật ký build (\textit{Build Logs}). Nếu chẳng may bản code mới đẩy lên phát sinh lỗi hiển thị hoặc lỗi gọi API, nhóm có thể sử dụng ngay tính năng \textbf{Rollback} trên bảng điều khiển để quay về phiên bản ổn định trước đó chỉ trong vài giây, giúp trang web không bị gián đoạn hoạt động (đáp ứng yêu cầu phi chức năng \texttt{NFR-08}).
+    \item \textbf{Quản lý đường dẫn và tên miền (\textit{Domains}):} Sau khi triển khai xong, Vercel cung cấp cho nhóm hai loại đường dẫn: một đường dẫn riêng cho từng lần deployment để tiện kiểm tra từng bản cập nhật, và một đường dẫn tên miền chính thức có dạng \texttt{<tên-website>.vercel.app} (luôn luôn chạy phiên bản thành công mới nhất trên nhánh \texttt{main}). Bên cạnh tên miền mặc định này, mục \textbf{Domains} trong phần cài đặt cũng cho phép nhóm gắn thêm các tên miền riêng nếu muốn mở rộng về sau.
+\end{itemize}
+
+\subsection{Kiểm tra hoạt động thực tế sau khi triển khai lên Cloud}
+
+Sau khi cả ba nền tảng \textbf{Vercel}, \textbf{Render} và \textbf{Supabase} đều báo trạng thái hoạt động xanh (Live/Ready), nhóm đã tiến hành kiểm tra thực tế toàn bộ luồng đặt đồ uống trên đường dẫn Cloud để đối chiếu với môi trường chạy cục bộ:
+
+\begin{enumerate}
+    \item \textbf{Luồng xem thực đơn và chọn món:} Khi truy cập vào địa chỉ web của dự án trên Vercel, trang chủ sử dụng đường dẫn trong biến \texttt{NEXT\_PUBLIC\_API\_URL} gọi thành công API \texttt{GET /products} từ Render và hiển thị đầy đủ danh sách các món nước lấy từ bảng \texttt{Product} trên Supabase. Các thao tác tìm kiếm theo tên, lọc theo danh mục (Trà sữa, Matcha, Cà phê, Trà trái cây), chọn size S/M/L và thêm topping (Trân châu, Kem) đều tính toán lại giá tiền chính xác và lưu ổn định vào giỏ hàng Zustand trên trình duyệt.
+    \item \textbf{Luồng đăng ký, đăng nhập và bảo vệ trang thanh toán:} Khi nhấn chuyển sang bước thanh toán mà chưa đăng nhập, trang web trên Vercel tự động điều hướng người dùng về trang \texttt{/login?redirect=/checkout}. Sau khi nhập thông tin tài khoản, Backend trên Render kiểm tra mật khẩu băm (\texttt{bcrypt}) trong bảng \texttt{User} trên Supabase, cấp phát chuỗi \texttt{access\_token} và đưa khách hàng quay trở lại trang thanh toán.
+    \item \textbf{Luồng thanh toán không tiền mặt, khuyến mãi và xử lý ngoại lệ:} Tại màn hình thanh toán, nhóm thử áp dụng các mã ưu đãi (\texttt{SGU2026}, \texttt{BREWLITE10}, \texttt{FREESHIP}) và nhấn \textit{"Xác nhận trả"}. Yêu cầu \texttt{POST /orders} và \texttt{POST /payments} kèm theo \texttt{Idempotency-Key} được gửi tới Render và thực thi trọn vẹn trong một Prisma Transaction trên Supabase: trạng thái đơn hàng chuyển từ \texttt{PENDING} sang \texttt{PAID}, số lượng tồn kho (\texttt{stock}) giảm đúng theo số ly đã đặt, trường \texttt{version} tăng thêm 1 đơn vị và điểm tích lũy (\texttt{loyaltyPoints}) được cộng chính xác vào tài khoản khách hàng. Đồng thời, khi nhóm thử bật tùy chọn \textit{"Chế độ Demo US-05"} để giả lập lỗi cổng thanh toán, đơn hàng trên Cloud cũng chuyển đúng sang trạng thái \texttt{PAYMENT\_FAILED} và giữ nguyên các món trong giỏ hàng để phục vụ trình diễn trước giảng viên.
+\end{enumerate}

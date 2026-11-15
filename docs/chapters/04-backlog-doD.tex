@@ -4,7 +4,7 @@
 \subsection{Bảng Product Backlog}
 \label{sec:product-backlog}
 
-Các task được sắp xếp từ dễ đến khó và được lên kế hoạch giải quyết toàn bộ trong 1 Sprint kéo dài 10 ngày.
+Các task được sắp xếp từ dễ đến khó và được lên kế hoạch giải quyết toàn bộ trong 1 Sprint kéo dài 10 ngày (Kết thúc vào 15/11/2026).
 Story Points (SP) là thang đo công sức tương đối; cách ước lượng được trình bày
 tại Mục~\ref{sec:story-points}.
 
@@ -33,40 +33,39 @@ tại Mục~\ref{sec:story-points}.
 \bottomrule
 \endlastfoot
 
-1 & Khởi tạo dự án và cấu trúc &
+1 & Khởi tạo dự án và cấu trúc DB &
 \begin{itemize}
-  \item Monorepo hoặc 2 thư mục \code{frontend} (Next.js) và \code{backend} (NestJS).
-  \item Cả hai chạy được và trả về ``Hello''.
-  \item Có README, Git, \code{.env.example}.
+  \item Khởi tạo \code{frontend} (Next.js) và \code{backend} (NestJS).
+  \item Cấu hình PostgreSQL và \code{Prisma ORM} (hạ cấp bản v5.22.0 để tránh lỗi).
+  \item Có README, thiết lập Git Actions (CI) và \code{.env.example}.
 \end{itemize} & 1 & 1 \\
 \midrule
 
 2 & API danh sách sản phẩm &
 \begin{itemize}
-  \item \code{GET /products} trả JSON menu gồm \code{id}, tên, giá, ảnh.
-  \item Dữ liệu lấy từ dữ liệu mẫu hoặc CSDL.
-  \item \code{GET /products/:id} trả chi tiết sản phẩm tương ứng; mã không tồn tại được xử lý là không tìm thấy.
+  \item \code{GET /products} trả JSON menu gồm \code{id}, tên, giá, ảnh từ PostgreSQL.
+  \item \code{GET /products/:id} trả chi tiết sản phẩm; mã không tồn tại báo lỗi 404.
 \end{itemize} & 1 & 1 \\
 \midrule
 
 3 & Trang Menu (Frontend) &
 \begin{itemize}
   \item Next.js gọi \code{/products} và render lưới sản phẩm (hình, tên, giá).
-  \item Có trạng thái \emph{loading} và \emph{empty}.
+  \item Có trạng thái \emph{loading} (Skeleton) và \emph{empty}.
 \end{itemize} & 2 & 1 \\
 \midrule
 
 4 & Chi tiết và tùy chọn sản phẩm &
 \begin{itemize}
   \item Màn hình chi tiết cho phép chọn size (S/M/L) và topping.
-  \item Giá được tính lại theo tùy chọn đã chọn.
+  \item Giá được tính lại theo tùy chọn trực tiếp trên Frontend.
 \end{itemize} & 2 & 1 \\
 \midrule
 
 5 & Giỏ hàng (Cart) &
 \begin{itemize}
   \item Thêm, sửa số lượng, xóa sản phẩm trong giỏ.
-  \item Lưu state bằng Zustand hoặc Context.
+  \item Lưu state bằng thư viện \code{Zustand}.
   \item Tự tính tổng tiền; hiển thị badge số lượng.
 \end{itemize} & 2 & 1 \\
 \midrule
@@ -74,47 +73,41 @@ tại Mục~\ref{sec:story-points}.
 6 & API tạo đơn hàng &
 \begin{itemize}
   \item \code{POST /orders} nhận giỏ hàng và validate bằng \code{class-validator}.
-  \item Lưu đơn ở trạng thái \code{PENDING}, trả về mã đơn.
+  \item Tính toán giá phía server, lưu đơn \code{PENDING}, sinh Idempotency-Key.
 \end{itemize} & 2 & 1 \\
 \midrule
 
 7 & Đăng ký / Đăng nhập (JWT) &
 \begin{itemize}
   \item \code{POST /auth/register} và \code{POST /auth/login}.
-  \item Mật khẩu băm bằng bcrypt; phát JWT.
-  \item Guard bảo vệ route đặt đơn.
+  \item Mật khẩu băm bằng \code{bcrypt}; phát \code{JWT}.
+  \item Dùng \code{JwtAuthGuard} bảo vệ route đặt đơn và thanh toán.
 \end{itemize} & 2 & 1 \\
 \midrule
 
-8 & Thanh toán không tiền mặt &
+8 & Thanh toán QR Code \& Mock Gateway &
 \begin{itemize}
-  \item Tích hợp mock payment: chọn Ví hoặc Thẻ, gọi \code{POST /payments}.
-  \item Thành công: đơn chuyển \code{PAID}.
-  \item Lỗi: đơn chuyển \code{PAYMENT\_FAILED}, giỏ hàng được giữ nguyên.
+  \item Tích hợp Ví MoMo (sinh mã QR) và Thẻ ngân hàng.
+  \item Tính năng \textbf{Short Polling} đồng bộ giao dịch từ điện thoại lên máy tính.
+  \item Lỗi thanh toán: đơn giữ trạng thái \code{PENDING}, giữ nguyên giỏ hàng.
 \end{itemize} & 2 & 1 \\
 \midrule
 
-9 & Xác nhận, lịch sử đơn và bàn giao &
+9 & Lịch sử đơn và Đóng gói &
 \begin{itemize}
-  \item Màn hình xác nhận hiển thị mã đơn và trạng thái.
-  \item \code{GET /orders/me} trả lịch sử đơn của user.
-  \item \code{docker-compose} chạy cả 3 dịch vụ (frontend, backend, DB).
-  \item Có README và demo end-to-end.
+  \item Màn hình xác nhận hiển thị mã đơn (index), điểm loyalty được cộng.
+  \item \code{GET /orders/me} trả lịch sử đơn sắp xếp mới nhất lên đầu.
+  \item \code{docker-compose} chạy đồng thời cả 3 dịch vụ ở môi trường local.
 \end{itemize} & 3 & 1 \\
 \midrule
 
-10 & Nghiệp vụ backend (Xử lý đặt hàng và thanh toán) &
+10 & Triển khai Public \& Nghiệp vụ lõi &
 \begin{itemize}
-  \item \textbf{State Machine} đơn hàng: \code{PENDING} $\to$ \code{PAID} $\to$
-        \code{PREPARING} $\to$ \code{READY} $\to$ \code{COMPLETED}; chặn chuyển
-        trạng thái không hợp lệ.
-  \item \textbf{Thanh toán idempotent} bằng \code{Idempotency-Key}.
-  \item \textbf{Kiểm soát tồn kho} khi thanh toán bằng transaction và
-        optimistic locking theo \code{version} và \code{stock}.
-  \item \textbf{Khuyến mãi và điểm thưởng}: áp mã hợp lệ, cộng điểm sau khi đơn \code{PAID}.
-  \item Có unit/integration test chứng minh: (a) chặn chuyển trạng thái sai;
-        (b) yêu cầu lặp với cùng \code{Idempotency-Key} không xử lý thanh toán lần hai;
-        (c) mô phỏng hai khách mua đồng thời để kiểm tra không vượt tồn kho.
+  \item \textbf{Triển khai}: Đẩy Frontend lên \code{Vercel}, Backend lên \code{Render}.
+  \item \textbf{State Machine}: \code{PENDING} $\to$ \code{PAID} $\to$ \code{COMPLETED}.
+  \item \textbf{Thanh toán idempotent}: Chặn trùng lặp với \code{Idempotency-Key}.
+  \item \textbf{Khuyến mãi \& Loyalty}: Kiểm tra mã hợp lệ, cộng điểm khi \code{PAID}.
+  \item \textbf{DB Transaction}: Dùng Prisma Transaction để trừ tồn kho và cập nhật trạng thái an toàn.
 \end{itemize} & 3 & 1 \\
 \midrule
 \multicolumn{3}{r}{\textbf{Tổng SP}} & \textbf{20} & \\
@@ -133,9 +126,9 @@ task chuẩn: \textbf{Task~2 (API danh sách sản phẩm) = 1 SP}.
 
 Mỗi task được cân nhắc theo bốn yếu tố:
 \begin{itemize}
-  \item \textbf{Độ phức tạp kỹ thuật}: mức độ khó của logic, thuật toán, tích hợp.
+  \item \textbf{Độ phức tạp kỹ thuật}: mức độ khó của logic, thuật toán, kết nối cơ sở dữ liệu.
   \item \textbf{Khối lượng công việc}: số màn hình, số endpoint, số thực thể cần làm.
-  \item \textbf{Rủi ro và độ bất định}: công nghệ mới với nhóm, yêu cầu chưa rõ.
+  \item \textbf{Rủi ro và độ bất định}: lỗi môi trường, lỗi deploy (Vercel/Render).
   \item \textbf{Phụ thuộc}: task có phải chờ hoặc ảnh hưởng đến task khác hay không.
 \end{itemize}
 
@@ -159,44 +152,34 @@ Mỗi task được cân nhắc theo bốn yếu tố:
 \endlastfoot
 
 1 & Khởi tạo dự án & 1 &
-Khởi tạo cấu trúc và cấu hình nền tảng tương đối đơn giản, ít nghiệp vụ và ít rủi ro. \\
+Thiết lập thư mục và cấu hình Prisma. Dù mất chút thời gian fix lỗi version v5.22.0 nhưng khối lượng tổng thể ít. \\
 \addlinespace
 2 & API danh sách sản phẩm & 1 &
-\textbf{Task chuẩn.} Một endpoint đọc danh sách sản phẩm từ CSDL, không có
-nghiệp vụ phức tạp. \\
+\textbf{Task chuẩn.} Một endpoint \code{GET} truy vấn bằng Prisma, không có nghiệp vụ phức tạp. \\
 \addlinespace
 3 & Trang Menu & 2 &
-Gọi API, render lưới và xử lý loading/empty. Nhiều hơn Task~2 vì có UI, state bất đồng bộ
-và phụ thuộc vào Task~2. \\
+Gọi API, render UI Tailwind, xử lý loading/empty. Phụ thuộc Task 2. \\
 \addlinespace
 4 & Chi tiết và tùy chọn & 2 &
-Có logic tính giá theo size/topping và phối hợp nhiều thành phần giao diện. Quy tắc
-giá cần được PO xác nhận. \\
+Phức tạp ở chỗ phải tính lại giá tức thì ở Frontend tùy theo size/topping. \\
 \addlinespace
 5 & Giỏ hàng & 2 &
-Quản lý state toàn cục, nhiều thao tác (thêm, sửa, xóa), tính tổng tiền và badge.
-Logic thuần frontend, rủi ro thấp. \\
+Sử dụng Zustand. Xử lý nhiều state logic (tăng giảm, xóa món) nên tốn nhiều effort hơn giao diện tĩnh. \\
 \addlinespace
 6 & API tạo đơn hàng & 2 &
-Phải thiết kế Order/OrderItem, kiểm tra dữ liệu đầu vào, lưu nhiều bảng trong một
-transaction và tính lại tổng tiền ở server. Ảnh hưởng trực tiếp đến Task 8, 9, 10. \\
+Validate DTO, thiết lập khoá phụ thuộc bảng \code{Order} và \code{OrderItem}, sinh chuỗi Idempotency. \\
 \addlinespace
 7 & Đăng ký / Đăng nhập (JWT) & 2 &
-Liên quan bảo mật: băm mật khẩu, phát và xác thực JWT, guard (Passport). Cần phối hợp
-backend với frontend và có rủi ro lỗi bảo mật nếu làm sai. \\
+Xử lý Passport, bcrypt và JwtAuthGuard bảo vệ route. Phải đồng bộ gửi header Authorization từ Frontend. \\
 \addlinespace
-8 & Thanh toán không tiền mặt & 2 &
-Tích hợp dịch vụ thanh toán giả lập, xử lý hai nhánh thành công/lỗi, cập nhật trạng thái
-đơn và giữ giỏ hàng khi lỗi. Phụ thuộc Task 6 và 7. \\
+8 & Thanh toán QR Code \& Mock Gateway & 2 &
+Cần làm API trả về cho cổng thanh toán di động giả lập, sinh mã QR động và xử lý cơ chế Short Polling định kỳ. \\
 \addlinespace
-9 & Xác nhận, lịch sử đơn và bàn giao & 3 &
-Gồm màn hình, endpoint lịch sử và đóng gói \code{docker-compose} cho 3 dịch vụ. Phần
-bàn giao dễ phát sinh lỗi môi trường. \\
+9 & Lịch sử đơn và Đóng gói & 3 &
+Xử lý Logic index lịch sử mua hàng cá nhân. Thiết lập file \code{docker-compose.yml} để build 3 container. Đòi hỏi test cẩn thận. \\
 \addlinespace
-10 & Nghiệp vụ backend & 3 &
-Gồm state machine, idempotency, kiểm soát tồn kho và khuyến mãi/điểm thưởng. Đây là
-nhóm nghiệp vụ phức tạp hơn các task giao diện cơ bản; phạm vi được giới hạn bằng
-các ca kiểm thử đã mô tả trong repo. \\
+10 & Triển khai Public \& Nghiệp vụ lõi & 3 &
+Deploy Vercel và Render đòi hỏi set đúng Environment Variables (sửa lỗi URL). Nghiệp vụ transaction bảo vệ dữ liệu cũng phức tạp nhất hệ thống. \\
 \midrule
 \multicolumn{2}{r}{\textbf{Tổng}} & \textbf{20} & \\
 \end{longtable}
@@ -225,43 +208,28 @@ Một task được xem là \textbf{hoàn thành} khi thỏa
 \midrule
 1 & Code và build &
 Code chạy được, không lỗi build; đáp ứng đầy đủ tiêu chí chấp nhận của task. \\
-2 & Git và review &
-Có commit trên Git với mô tả rõ ràng; code được review trong nhóm trước khi merge. \\
+2 & Git và CI &
+Có commit trên Git nhánh main; GitHub Actions chạy pass không báo lỗi cú pháp. \\
 3 & API &
-Endpoint có validate đầu vào (\code{class-validator}); trả mã lỗi và thông báo hợp lý. \\
+Endpoint có validate đầu vào (\code{class-validator}); trả mã lỗi phù hợp (VD: 401 Unauthorized, 404 Not Found). \\
 4 & Giao diện &
-UI xử lý trạng thái loading và lỗi cơ bản. \\
-5 & Tài liệu &
-Có hướng dẫn chạy trong README. \\
+UI bằng Tailwind CSS hiển thị tốt, có thông báo hoặc skeleton khi load dữ liệu. \\
+5 & Môi trường &
+Các biến môi trường (\code{DATABASE\_URL}, \code{NEXT\_PUBLIC\_API\_URL}) đã được thiết lập đúng chỗ (Render/Vercel/Supabase). \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-\subsubsection{DoD bổ sung (áp dụng theo loại task)}
-
-\begin{itemize}
-  \item \textbf{Task backend (2, 6, 7, 8, 9, 10):} API xử lý đầu vào hợp lệ và không hợp lệ;
-        mật khẩu được băm, route cần bảo vệ có JWT guard.
-  \item \textbf{Task frontend (3, 4, 5, 9):} giao diện hiển thị trạng thái tải/lỗi phù hợp
-        với luồng của task và cho phép hoàn tất kịch bản người dùng tương ứng.
-  \item \textbf{Task 9 (bàn giao):} \code{docker-compose up} chạy được cả frontend,
-        backend và DB; demo end-to-end thành công.
-  \item \textbf{Task 10 (nghiệp vụ backend):} có kiểm thử tự động cho
-        (a) chặn chuyển trạng thái sai, (b) 2 lần cùng \code{Idempotency-Key} chỉ
-        tạo 1 đơn, (c) đặt đồng thời không vượt tồn kho; tất cả test pass.
-\end{itemize}
 
 \subsubsection{Danh mục kiểm tra trước khi nghiệm thu}
 
 Trước mỗi Sprint Review, nhóm dùng danh mục sau để tự kiểm tra từng task:
 
 \begin{itemize}
-  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] Code chạy được, không lỗi build.
+  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] Code chạy ổn định, không lỗi trắng trang (Crash).
   \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] Đáp ứng đủ tiêu chí chấp nhận trong Product Backlog.
-  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] Có commit Git với mô tả rõ ràng.
-  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] Đã được review bởi ít nhất một thành viên khác.
-  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] API có validate đầu vào.
-  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] UI xử lý loading/lỗi cơ bản.
-  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] README có hướng dẫn chạy và được cập nhật.
-  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] (Task 10) Test (a), (b), (c) đều pass.
+  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] Đã push code lên GitHub và Merge Pull Request an toàn.
+  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] API bắt được lỗi nếu dữ liệu rác.
+  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] Luồng thanh toán QR đa thiết bị đồng bộ thành công trên máy tính.
+  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] Ứng dụng đã lên sóng Internet (Vercel) và gọi API thành công từ Render.
+  \item[\fbox{\rule{0pt}{1.1ex}\rule{1.1ex}{0pt}}] (Nghiệp vụ) Gửi thanh toán lặp với cùng một mã quét QR không bị trừ điểm tồn kho 2 lần.
 \end{itemize}

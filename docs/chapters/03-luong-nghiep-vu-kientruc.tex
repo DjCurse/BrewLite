@@ -113,6 +113,21 @@ BrewLite được xây dựng theo mô hình phân tầng gồm Frontend, Backen
 
 Toàn bộ hệ thống (Frontend, Backend, PostgreSQL) được khai báo trong tệp \texttt{docker-compose.yml}, cho phép khởi chạy đồng thời bằng một lệnh \texttt{docker-compose up --build}. Thông tin cấu hình nhạy cảm như chuỗi kết nối cơ sở dữ liệu nằm trong tệp \texttt{.env}, không đưa lên Git; chỉ tệp mẫu \texttt{.env.example} được chia sẻ cho cả nhóm.
 
+\subsubsection{Triển khai hệ thống thực tế (Deployment)}
+Môi trường phát triển (Dev) của hệ thống được khai báo trong tệp \texttt{docker-compose.yml}, cho phép khởi chạy đồng thời bằng lệnh \texttt{docker-compose up}. Tuy nhiên, để mang lại trải nghiệm thực tế nhất cho đồ án, nhóm đã đưa hệ thống lên môi trường mạng Internet:
+\begin{itemize}
+    \item \textbf{Frontend (Next.js):} Do \textbf{Trúc Đào} đảm nhiệm triển khai trên nền tảng \textbf{Vercel}, tận dụng khả năng tự động tối ưu hóa SSR của Next.js, cung cấp đường dẫn truy cập mượt mà và bảo mật SSL cho mọi thiết bị.
+    \item \textbf{Backend (NestJS) \& Database:} Do \textbf{Khang} cấu hình đưa Backend API lên \textbf{Render} (Web Service). PostgreSQL được quản lý qua dịch vụ Managed Cloud của \textbf{Supabase}. Prisma ORM được cấu hình migrate thành công trên môi trường Production (với bản hạ cấp v5.22.0 để tránh xung đột), khắc phục hoàn toàn các lỗi CORS khi giao tiếp giữa Vercel và Render.
+\end{itemize}
+
+\subsubsection{Cơ chế đồng bộ thanh toán QR Code đa thiết bị (Cross-device Sync)}
+Tính năng này do \textbf{Khang} thiết kế và lập trình, đưa chức năng thanh toán của BrewLite lên một tầm cao mới so với các ứng dụng cơ bản bằng luồng xử lý đồng bộ mượt mà:
+\begin{enumerate}
+    \item \textbf{Tạo mã QR:} Máy tính gọi API tạo đơn hàng, lấy \texttt{orderId} và mã hóa toàn bộ thông tin (bao gồm Token, Tổng tiền và Idempotency-Key) thành một liên kết, hiển thị dưới dạng mã QR động.
+    \item \textbf{Thanh toán trên điện thoại:} Khách hàng sử dụng camera điện thoại quét mã, hệ thống mở giao diện cổng thanh toán (Mock Payment Ví MoMo) trực tiếp trên điện thoại. Khi bấm xác nhận, điện thoại gọi thẳng API \texttt{POST /payments} về Backend.
+    \item \textbf{Đồng bộ Short Polling:} Trình duyệt trên máy tính được thiết lập bộ quét liên tục tới API \texttt{GET /orders/me} mỗi 3 giây để lắng nghe ngầm giao dịch.
+    \item \textbf{Hoàn tất tự động:} Ngay khi điện thoại xác nhận thanh toán thành công, máy tính lập tức nhận diện trạng thái \texttt{PAID}, tự động dọn giỏ hàng và chuyển khách sang màn hình hóa đơn hoàn tất (cộng điểm Loyalty) mà không cần người dùng thao tác chuột hay bàn phím.
+\end{enumerate}
 %==============================================================
 \subsection{Mô tả 5 màn hình Wireframe}
 \label{sec:wireframe}
@@ -239,21 +254,23 @@ Phần này mô tả bố cục năm màn hình cốt lõi, dựa trên giao di�
 \end{longtable}
 
 %--------------------------------------------------------------
-\subsubsection{Màn hình 4: Thanh toán}
+\subsubsection{Màn hình 4: Thanh toán không tiền mặt và Quét mã QR đa thiết bị}
 \label{subsec:wf-thanhtoan}
 %--------------------------------------------------------------
-\textbf{Mục đích:} chọn phương thức không tiền mặt, áp mã khuyến mãi và xác nhận thanh toán.
+\textbf{Mục đích:} cho phép khách hàng chọn phương thức thanh toán không tiền mặt (Ví điện tử MoMo tích hợp mã QR đa thiết bị hoặc Thẻ ngân hàng), áp dụng mã khuyến mãi và tiến hành xác nhận thanh toán liền mạch giữa máy tính và điện thoại.
 
 \begin{minipage}{\textwidth}
-\centering
-\chenHinh{width=0.95\textwidth}{Screenshot 2026-10-30 163244.png}
-\captionof{figure}{Màn hình Thanh toán không tiền mặt}
-\label{fig:wf-thanhtoan}
+  \centering
+  \chenHinh{width=0.48\textwidth}{Screenshot 2026-10-30 163244.png}\hfill
+  \chenHinh{width=0.48\textwidth}{Screenshot 2026-11-10 181829.png}
+  \captionof{figure}{Màn hình Thanh toán: Chọn phương thức Thẻ ngân hàng (trái) và Chọn Ví điện tử MoMo hiển thị mã QR động cùng cơ chế Short Polling (phải)}
+  \label{fig:wf-thanhtoan-qr}
 \end{minipage}
+
 \vspace{10pt}
 
 \begin{longtable}{|p{1.0cm}|p{2.5cm}|p{4.5cm}|p{5.5cm}|}
-  \caption{Thứ tự thao tác trên màn hình Thanh toán}\label{tab:wf-thanhtoan}\\
+  \caption{Thứ tự thao tác trên màn hình Thanh toán máy tính (Hình~\ref{fig:wf-thanhtoan-qr})}\label{tab:wf-thanhtoan}\\
   \hline
   \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
@@ -262,17 +279,45 @@ Phần này mô tả bố cục năm màn hình cốt lõi, dựa trên giao di�
   \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
   \hline
   \endhead
-  (1) & Thanh đầu trang & Liên kết ``Quay lại giỏ hàng'' & Bấm ``Quay lại giỏ hàng'' nếu muốn chỉnh lại đơn trước khi trả tiền. \\
+  (1) & Thanh đầu trang & Liên kết ``Quay lại giỏ hàng'' & Bấm để quay về giỏ hàng nếu muốn điều chỉnh lại danh sách món trước khi thanh toán. \\
   \hline
-  (2) & Cột bên trái, khung 1 & Hai nút radio: ``Ví điện tử (MoMo / VNPay)'' và ``Thẻ ngân hàng (ATM / Visa)'' & Chọn \textbf{đúng một} phương thức thanh toán. Lựa chọn được tô viền và nền xanh. \\
+  (2) & Cột bên trái, khung 1 & Radio chọn ``Ví điện tử (MoMo)'' hoặc ``Thẻ ngân hàng (ATM / Visa)'' & Chọn phương thức thanh toán. Khi chọn MoMo, hệ thống sinh mã QR động bên cột phải; khi chọn Thẻ, hiển thị nút xác nhận trả thẻ trực tiếp. \\
   \hline
-  (3) & Cột bên trái, khung 2 & Ô nhập ``Mã khuyến mãi \& Điểm thưởng'' & Khách nhập mã (\texttt{SGU2026}, \texttt{BREWLITE10}...); nếu hợp lệ thì ``Tổng thanh toán'' ở cột phải được cập nhật giảm trừ. \\
+  (3) & Cột bên trái, khung 2 & Ô nhập ``Mã khuyến mãi'' & Nhập mã ưu đãi (ví dụ: \texttt{SGU2026}, \texttt{BREWLITE10}...); hệ thống tự động kiểm tra và giảm trừ trực tiếp vào tổng tiền. \\
   \hline
-  (4) & Cột bên trái, khung vàng & Ô tick ``Chế độ Demo US-05'' & Khách (hoặc người test) tick vào ô để giả lập lỗi \texttt{PAYMENT\_FAILED}, giỏ hàng được giữ nguyên khi test. \\
+  (4) & Cột bên phải, khung Đơn hàng & Hiển thị tổng tiền và nút hành động & Kiểm tra lại thông tin tạm tính, tổng thanh toán và thực hiện hành động xác nhận. \\
   \hline
-  (5) & Cột bên phải, khung ``Đơn hàng'' & ``Tạm tính'' và ``Tổng thanh toán'' & Kiểm tra lại số tiền cuối cùng khách phải trả sau khi áp mã. \\
+  (5) & Cột bên phải, khung QR & Vùng mã QR và thông báo trạng thái & Khi chọn Ví điện tử, quét mã QR qua camera điện thoại hoặc click liên kết giả lập dev để mở giao diện mobile. Hệ thống tự động lắng nghe giao dịch ngầm (Short Polling mỗi 3 giây). \\
   \hline
-  (6) & Cột bên phải, phía dưới & Nút lớn ``Xác nhận trả'' & Bấm để gửi yêu cầu thanh toán. Nếu thành công thì chuyển sang màn hình xác nhận; nếu thất bại thì hiển thị lỗi và cho phép thử lại. \\
+\end{longtable}
+
+\vspace{10pt}
+
+\begin{minipage}{\textwidth}
+  \centering
+  \chenHinh{width=0.45\textwidth}{image_855460.png}\hfill
+  \chenHinh{width=0.45\textwidth}{image_855446.png}
+  \captionof{figure}{Giao diện cổng thanh toán giả lập trên điện thoại: Màn hình xác nhận chuyển khoản MoMo (trái) và Màn hình thông báo thanh toán thành công (phải)}
+  \label{fig:ui-mock-payment}
+\end{minipage}
+
+\vspace{10pt}
+
+\begin{longtable}{|p{1.0cm}|p{2.5cm}|p{4.5cm}|p{5.5cm}|}
+  \caption{Thứ tự thao tác trên giao diện thanh toán di động (Hình~\ref{fig:ui-mock-payment})}\label{tab:wf-mobile-payment}\\
+  \hline
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \hline
+  \endfirsthead
+  \hline
+  \textbf{STT} & \textbf{Vị trí} & \textbf{Thành phần} & \textbf{Thao tác và phản hồi} \\
+  \hline
+  \endhead
+  (1) & Giữa màn hình (trái) & Nút lớn màu hồng ``Xác nhận chuyển [Số tiền]'' & Khách hàng quét mã QR trên màn hình máy tính bằng camera điện thoại, giao diện cổng thanh toán MoMo mở ra, bấm nút xác nhận để gọi API \texttt{POST /payments} lên Backend. \\
+  \hline
+  (2) & Dưới nút xác nhận & Nút ``Hủy'' & Bấm để hủy bỏ giao dịch thanh toán trên thiết bị di động, giữ nguyên trạng thái đơn hàng. \\
+  \hline
+  (3) & Màn hình hoàn tất (phải) & Biểu tượng tích xanh và thông báo thành công & Hiển thị thông báo ``Thanh toán thành công!''. Ngay lập tức, trình duyệt trên máy tính tự động bắt tín hiệu qua cơ chế Short Polling để chuyển hướng sang màn hình hoàn tất đơn hàng và cộng điểm loyalty mà không cần thao tác thủ công. \\
   \hline
 \end{longtable}
 

@@ -7,10 +7,10 @@
 \begin{minipage}{0.93\textwidth}
 \centering
 \large\itshape
-" Hệ Thống Đặt Và Thanh Toán Đồ Uống giúp khách hàng
+"Hệ Thống Đặt Và Thanh Toán Đồ Uống BrewLite giúp khách hàng
 đặt và thanh toán đồ uống không tiền mặt chỉ trong vài
-chạm, mang lại trải nghiệm nhanh chóng, tiện lợi và
-hiện đại trong không gian quán. "
+chạm (qua mã QR đa thiết bị hoặc thẻ), mang lại trải nghiệm 
+nhanh chóng, tiện lợi và hiện đại trong không gian quán."
 \end{minipage}
 }
 \end{center}
@@ -37,18 +37,18 @@ Mối quan tâm / Thách thức \\
 Khách hàng &
 Người dùng cuối &
 Xem menu nhanh, tùy chọn size/topping dễ dàng,
-đặt hàng và thanh toán không tiền mặt không lo xếp hàng. &
+đặt hàng và thanh toán QR không lo xếp hàng. &
 Trải nghiệm mượt mà, không giật lag giờ cao điểm,
 tính chính xác của đơn hàng. \\
 
 \midrule
 
 Quản lý / PO &
-Quản lý vận hành &
-Quản lý món ăn, tồn kho, theo dõi trạng thái đơn hàng
+Quản lý vận hành (Tô Phúc Khang) &
+Quản lý món ăn, theo dõi trạng thái đơn hàng
 thời gian thực và tối ưu quy trình phục vụ. &
-Giao diện quản trị trực quan, báo cáo doanh thu chính xác,
-giảm thiểu sai sót đơn. \\
+Phân chia Task hợp lý, giao diện trực quan, 
+đảm bảo tiến độ bàn giao. \\
 
 \midrule
 
@@ -56,17 +56,17 @@ Giảng viên &
 Nghiệm thu &
 Kiểm tra tính đầy đủ của các yêu cầu chức năng,
 kiến trúc hệ thống và khả năng vận hành thực tế. &
-Tuân thủ quy trình phát triển phần mềm, chuẩn hóa code,
-tính bảo mật và tài liệu kỹ thuật. \\
+Tuân thủ quy trình Scrum, chuẩn hóa code,
+tính bảo mật và tài liệu kỹ thuật (LaTeX). \\
 
 \midrule
 
 Dev Team &
-Phát triển hệ thống &
+Phát triển hệ thống (Như Ý, Tuyết Trâm, Tuấn, Khang, Trúc Đào) &
 Phát triển tính năng đúng tiến độ, mã nguồn sạch,
 kiến trúc dễ nâng cấp và duy trì. &
-Khả năng mở rộng, quản lý API, tính đồng bộ giữa
-Frontend và Backend. \\
+Khả năng mở rộng, quản lý cấu hình Prisma/PostgreSQL, 
+deploy Render/Vercel và đồng bộ Frontend/Backend. \\
 
 \midrule
 
@@ -74,8 +74,8 @@ Gateway Mock &
 Trung gian thanh toán &
 Xử lý giao dịch thanh toán trực tuyến an toàn,
 chính xác và phản hồi nhanh chóng. &
-Tính bảo mật thông tin thanh toán, xử lý phản hồi
-giao dịch (Idempotency). \\
+Cơ chế Short Polling quét mã QR đồng bộ 
+và xử lý giao dịch lặp (Idempotency). \\
 
 \bottomrule
 \end{tabularx}
@@ -101,50 +101,49 @@ Tương ứng nhánh BFD \\
 
 FR-01 &
 Tất cả người dùng &
-Hệ thống yêu cầu đăng nhập, đăng xuất và cho phép
-cập nhật thông tin hồ sơ cá nhân. &
+Hệ thống yêu cầu đăng nhập, đăng xuất qua JWT và cho phép
+quản lý giỏ hàng cá nhân. &
 1. Quản lý tài khoản \\
 
 \midrule
 
 FR-02 &
 Quản lý (Admin) &
-Hệ thống cho phép quản trị viên thêm, sửa, xóa
-tài khoản nhân viên và phân quyền truy cập. &
-1. Quản lý tài khoản \\
+Hệ thống cho phép quản trị viên xem danh sách các đơn hàng
+được đặt trong hệ thống. &
+1. Quản lý đơn hàng \\
 
 \midrule
 
 FR-03 &
-Quản lý (Admin) &
-Hệ thống cho phép thêm, sửa, xóa, phân loại danh mục
-và cập nhật trạng thái món ăn (còn/hết). &
-2. Quản lý thực đơn \\
+Khách hàng &
+Hệ thống hiển thị danh sách sản phẩm, chi tiết sản phẩm 
+cùng với các tùy chọn Size và Topping. &
+2. Xem thực đơn \\
 
 \midrule
 
 FR-04 &
-Quản lý (Admin) &
-Hệ thống hỗ trợ tạo phiếu nhập kho, kiểm kê và
-cập nhật số lượng tồn kho nguyên liệu. &
-3. Quản lý nhập kho \\
+Khách hàng &
+Hệ thống tính toán mã giảm giá (Promotion) và 
+tích lũy điểm (Loyalty) cho mỗi đơn hàng. &
+3. Khuyến mãi \& Loyalty \\
 
 \midrule
 
 FR-05 &
-Khách / Phục vụ &
-Hệ thống cho phép xem chi tiết thực đơn, tìm kiếm
-món ăn và xem tư vấn món bán chạy. &
+Khách hàng &
+Hệ thống cho phép thêm món vào giỏ hàng (Zustand),
+tạo đơn hàng (Order State Machine) và lưu trữ lịch sử đặt. &
 4. Đặt món \\
 
 \midrule
 
 FR-06 &
-Khách / Phục vụ &
-Hệ thống cho phép thêm món vào giỏ hàng, tùy chọn
-hình thức (tại bàn/mang đi), thêm ghi chú và
-xác nhận gửi order. &
-4. Đặt món \\
+Khách hàng &
+Hệ thống hỗ trợ thanh toán qua mã QR (đồng bộ máy tính và điện thoại) 
+hoặc giả lập cổng thẻ. &
+5. Thanh toán \\
 
 \bottomrule
 \end{tabularx}
@@ -169,77 +168,42 @@ ID & Loại & Non-functional Requirement \\
 NFR-01 &
 Performance &
 Ít nhất 95\% yêu cầu xem danh sách món ăn phải được hệ thống
-phản hồi trong vòng 2 giây trong điều kiện tải bình thường
-(Thời gian phản hồi API dưới 500ms). \\
+phản hồi trong vòng 2 giây (API dưới 500ms). \\
 
 \midrule
 
 NFR-02 &
 Performance &
-Hệ thống phải có khả năng xử lý ít nhất 100 yêu cầu đặt món
-đồng thời mà không làm mất, tạo trùng hoặc sai thông tin đơn hàng. \\
+Hệ thống áp dụng Optimistic Locking để bảo vệ tồn kho (Stock) khi có 
+nhiều yêu cầu đặt món đồng thời, tránh bán vượt số lượng. \\
 
 \midrule
 
 NFR-03 &
 Security &
-Hệ thống phải yêu cầu khách hàng đăng nhập trước khi thực hiện
-các thao tác đặt món và thanh toán. \\
+Hệ thống sử dụng cơ chế Idempotency-Key để chống lỗi 
+xử lý thanh toán lặp hoặc trừ tiền nhiều lần cho 1 đơn. \\
 
 \midrule
 
 NFR-04 &
 Security &
-Hệ thống phải phân quyền theo vai trò (RBAC), đảm bảo khách hàng
-không thể truy cập các chức năng quản lý dành cho nhân viên
-và quản trị viên. \\
+Thông tin tài khoản và mật khẩu được bảo vệ
+bằng băm (bcrypt) và token JWT (AuthGuard). \\
 
 \midrule
 
 NFR-05 &
-Security &
-Thông tin tài khoản và mật khẩu của người dùng phải được bảo vệ
-bằng mã hóa băm (bcrypt) và token JWT, không cho phép người dùng
-khác truy cập trái phép. \\
+Usability &
+Giao diện thanh toán hỗ trợ quét mã QR bằng điện thoại 
+và tự động đồng bộ trạng thái về màn hình máy tính (Short Polling mỗi 3s). \\
 
 \midrule
 
 NFR-06 &
-Usability &
-Giao diện đặt món phải rõ ràng, dễ sử dụng và cho phép khách hàng
-hoàn thành quy trình chọn món $\rightarrow$ thêm vào giỏ hàng
-$\rightarrow$ xác nhận đơn hàng một cách thuận tiện. \\
-
-\midrule
-
-NFR-07 &
 Reliability &
-Hệ thống phải đảm bảo thông tin về món ăn, số lượng, giá tiền
-và đơn hàng được lưu trữ chính xác, không bị mất hoặc sai lệch
-trong quá trình xử lý. \\
-
-\midrule
-
-NFR-08 &
-Availability &
-Hệ thống phải duy trì hoạt động ổn định trong thời gian phục vụ
-và hạn chế tối đa tình trạng gián đoạn khi khách hàng thực hiện
-đặt món. \\
-
-\midrule
-
-NFR-09 &
-Scalability &
-Hệ thống phải cho phép thêm mới cửa hàng, món ăn, nhân viên
-và tài khoản quản lý mà không ảnh hưởng đến các chức năng
-đang hoạt động. \\
-
-\midrule
-
-NFR-10 &
-Maintainability &
-Hệ thống phải được thiết kế và tổ chức mã nguồn rõ ràng,
-thuận tiện cho việc bảo trì và mở rộng tính năng về sau. \\
+Sử dụng Prisma Transaction để đảm bảo các bước (trừ kho, lưu thanh toán, 
+cộng điểm loyalty) thành công toàn bộ hoặc bị hủy toàn bộ (rollback). \\
 
 \bottomrule
 \end{tabularx}
@@ -251,7 +215,7 @@ thuận tiện cho việc bảo trì và mở rộng tính năng về sau. \\
 
 \vspace{8pt}
 
-\textbf{\large US-05: Thanh toán không tiền mặt}
+\textbf{\large US-05: Thanh toán QR Code đồng bộ đa thiết bị}
 
 \vspace{12pt}
 
@@ -259,9 +223,9 @@ thuận tiện cho việc bảo trì và mở rộng tính năng về sau. \\
 
 \hspace{1cm}
 "Là một Khách hàng, tôi muốn thực hiện thanh toán đơn hàng
-bằng phương thức không tiền mặt (chuyển khoản / cổng thanh toán)
-để tôi có thể hoàn tất việc đặt đồ uống nhanh chóng mà không
-cần đợi trả lại tiền mặt."
+bằng phương thức quét mã QR trên điện thoại di động,
+và màn hình máy tính sẽ tự động xác nhận hoàn tất 
+để tôi có trải nghiệm liền mạch không gián đoạn."
 
 \vspace{15pt}
 
@@ -269,25 +233,20 @@ cần đợi trả lại tiền mặt."
 
 \begin{enumerate}
 
-\item \textbf{Given} Khách hàng đã chọn xong các món trong giỏ hàng
-và tiến hành sang bước thanh toán.
+\item \textbf{Given} Khách hàng chọn phương thức "Ví điện tử \& Quét mã QR"
+tại màn hình thanh toán.
 
-\item \textbf{When} Khách hàng chọn phương thức
-"Thanh toán qua Ví điện tử / Mã QR" và nhấn
-"Xác nhận thanh toán".
+\item \textbf{When} Khách hàng dùng điện thoại quét mã QR được tạo ra trên máy tính,
+giao diện điện thoại hiển thị nút "Xác nhận trả" kèm Idempotency-Key.
 
-\item \textbf{Then} Hệ thống tạo mã giao dịch duy nhất,
-hiển thị thông tin số tiền và mã QR thanh toán tương ứng
-trong vòng dưới 500ms.
+\item \textbf{Then} Sau khi điện thoại ấn xác nhận gọi API \texttt{POST /payments},
+hệ thống ghi nhận trạng thái \texttt{PAID}.
 
-\item \textbf{And} Khi giao dịch thanh toán thành công,
-trạng thái đơn hàng lập tức được cập nhật thành
-\texttt{PAID} và gửi thông báo xác nhận đơn hàng
-cho khách hàng.
+\item \textbf{And} Máy tính đang chạy Short Polling (3 giây/lần) sẽ tự động
+bắt được trạng thái \texttt{PAID} từ Backend.
 
-\item \textbf{And} Trường hợp thanh toán thất bại hoặc quá
-thời gian chờ (timeout), hệ thống thông báo lỗi rõ ràng
-và giữ nguyên giỏ hàng để khách hàng thử lại mà không
-bị trừ tiền hoặc tạo trùng đơn.
+\item \textbf{And} Màn hình máy tính tự động chuyển hướng sang trang 
+Lịch sử đơn hàng kèm theo số điểm thưởng (Loyalty) được tích lũy 
+mà không cần khách hàng bấm thêm nút nào.
 
 \end{enumerate}

@@ -1,11 +1,3 @@
-// Giả lập (Mock) các Exception của @nestjs/common để Jest không bị lỗi ES Module
-jest.mock('@nestjs/common', () => ({
-  BadRequestException: class BadRequestException extends Error {},
-  ConflictException: class ConflictException extends Error {},
-  NotFoundException: class NotFoundException extends Error {},
-  Injectable: () => () => {},
-}));
-
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import {
   OrderStatus,
